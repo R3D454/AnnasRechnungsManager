@@ -1,0 +1,115 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id           String    @id @default(cuid())
+  email        String    @unique
+  passwordHash String
+  name         String
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  companies    Company[]
+
+  @@map("users")
+}
+
+model Company {
+  id              String     @id @default(cuid())
+  name            String
+  legalForm       String?
+  taxId           String?
+  vatId           String?
+  address         String
+  zip             String
+  city            String
+  country         String     @default("DE")
+  email           String?
+  phone           String?
+  website         String?
+  bankIban        String?
+  bankBic         String?
+  bankName        String?
+  invoicePrefix   String     @default("RE")
+  invoiceSequence Int        @default(0)
+  userId          String
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customers       Customer[]
+  invoices        Invoice[]
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@map("companies")
+}
+
+model Customer {
+  id        String    @id @default(cuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String
+  vatId     String?
+  taxId     String?
+  address   String
+  zip       String
+  city      String
+  country   String    @default("DE")
+  email     String?
+  phone     String?
+  invoices  Invoice[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@map("customers")
+}
+
+model Invoice {
+  id           String        @id @default(cuid())
+  number       String
+  companyId    String
+  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId   String
+  customer     Customer      @relation(fields: [customerId], references: [id])
+  issueDate    DateTime
+  deliveryDate DateTime?
+  dueDate      DateTime
+  status       InvoiceStatus @default(DRAFT)
+  notes        String?       @db.Text
+  items        InvoiceItem[]
+  netTotal     Decimal       @db.Decimal(10, 2)
+  taxTotal     Decimal       @db.Decimal(10, 2)
+  grossTotal   Decimal       @db.Decimal(10, 2)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  @@unique([companyId, number])
+  @@map("invoices")
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  CANCELLED
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  invoiceId   String
+  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  position    Int
+  description String  @db.Text
+  quantity    Decimal @db.Decimal(10, 3)
+  unit        String?
+  unitPrice   Decimal @db.Decimal(10, 2)
+  taxRate     Decimal @db.Decimal(5, 2)
+  netAmount   Decimal @db.Decimal(10, 2)
+  taxAmount   Decimal @db.Decimal(10, 2)
+  grossAmount Decimal @db.Decimal(10, 2)
+
+  @@map("invoice_items")
+}
