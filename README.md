@@ -11,18 +11,19 @@ Buchhaltungs- und Rechnungsverwaltungssystem für Mandanten.
 
 ## Tech Stack
 
-- **Next.js 14** (App Router) + TypeScript
-- **MySQL / MariaDB** via Prisma ORM
-- **NextAuth.js v5** (Email/Passwort-Login)
-- **Tailwind CSS** + shadcn/ui
+- **React Router v7** (Framework Mode, SSR) + TypeScript
+- **MariaDB / MySQL** via Prisma ORM
+- **Cookie-Session-Auth** (bcryptjs, kein NextAuth)
+- **Tailwind CSS v4** + shadcn/ui
 - **@react-pdf/renderer** für PDF-Generierung
+- **Docker** für die Datenbank
 
 ## Setup
 
 ### 1. Voraussetzungen
 
-- Node.js 18+
-- MySQL oder MariaDB
+- Node.js 20+
+- Docker (für MariaDB)
 
 ### 2. Installation
 
@@ -30,11 +31,11 @@ Buchhaltungs- und Rechnungsverwaltungssystem für Mandanten.
 npm install
 ```
 
-### 3. Datenbank konfigurieren
+### 3. Umgebungsvariablen konfigurieren
 
 ```bash
 cp .env.example .env
-# DATABASE_URL in .env anpassen
+# DATABASE_URL und AUTH_SECRET in .env anpassen
 ```
 
 ### 4. Datenbank einrichten
@@ -52,7 +53,9 @@ npx prisma db seed
 npm run dev
 ```
 
-Öffne [http://localhost:3000](http://localhost:3000)
+Startet Docker (PostgreSQL) und den Vite-Dev-Server.
+
+Öffne [http://localhost:5173](http://localhost:5173)
 
 ## Datenbank-Kommandos
 
