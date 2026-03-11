@@ -1,4 +1,12 @@
 import { Link, useLoaderData } from "react-router";
+
+export const handle = {
+  breadcrumbs: (data: { company: { id: string; name: string } }) => [
+    { label: "Mandanten", href: "/companies" },
+    { label: data.company.name, href: `/companies/${data.company.id}` },
+    { label: "Rechnungen" },
+  ],
+};
 import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";

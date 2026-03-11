@@ -1,4 +1,13 @@
 import { Link, useLoaderData, useNavigate, redirect } from "react-router";
+
+export const handle = {
+  breadcrumbs: (data: { company: { id: string; name: string } }) => [
+    { label: "Mandanten", href: "/companies" },
+    { label: data.company.name, href: `/companies/${data.company.id}` },
+    { label: "Rechnungen", href: `/companies/${data.company.id}/invoices` },
+    { label: "Neue Rechnung" },
+  ],
+};
 import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";

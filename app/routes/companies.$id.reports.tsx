@@ -1,8 +1,28 @@
 import { useState, useEffect } from "react";
-import { Link, useParams } from "react-router";
+import { Link, useLoaderData } from "react-router";
+import { requireUser } from "@/session.server";
+import prisma from "@/lib/prisma";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/tax";
 import { ChevronLeft, TrendingUp, BarChart3 } from "lucide-react";
+
+export const handle = {
+  breadcrumbs: (data: { companyId: string; companyName: string }) => [
+    { label: "Mandanten", href: "/companies" },
+    { label: data.companyName, href: `/companies/${data.companyId}` },
+    { label: "Berichte" },
+  ],
+};
+
+export async function loader({ request, params }: { request: Request; params: { id: string } }) {
+  const user = await requireUser(request);
+  const company = await prisma.company.findFirst({
+    where: { id: params.id, userId: user.id },
+    select: { id: true, name: true },
+  });
+  if (!company) throw new Response("Not Found", { status: 404 });
+  return { companyId: company.id, companyName: company.name };
+}
 
 const MONTHS = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"];
 
@@ -42,7 +62,7 @@ interface ReportData {
 }
 
 export default function ReportsPage() {
-  const { id: companyId } = useParams<{ id: string }>();
+  const { companyId } = useLoaderData<typeof loader>();
   const [year, setYear] = useState(new Date().getFullYear());
   const [data, setData] = useState<ReportData | null>(null);
   const [loading, setLoading] = useState(true);

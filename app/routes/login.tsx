@@ -3,7 +3,6 @@ import { login, createUserSession, getUserSession } from "@/session.server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Calculator, AlertCircle } from "lucide-react";
 
 export async function loader({ request }: { request: Request }) {
@@ -29,26 +28,69 @@ export default function LoginPage() {
   const loading = navigation.state === "submitting";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-indigo-600 mb-4">
-            <Calculator className="w-7 h-7 text-white" />
-          </div>
-          <h1 className="text-2xl font-bold text-gray-900">Annas Rechnungsmanager</h1>
-          <p className="text-gray-500 mt-1">Buchhaltung & Rechnungsverwaltung</p>
+    <div className="min-h-screen flex">
+      {/* Left decorative panel */}
+      <div className="hidden lg:flex lg:w-1/2 relative overflow-hidden" style={{ background: "var(--sidebar-bg)" }}>
+        <div className="absolute inset-0">
+          {/* Decorative gradient blobs */}
+          <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-indigo-600/20 rounded-full blur-3xl" />
+          <div className="absolute bottom-1/3 right-1/4 w-48 h-48 bg-violet-600/20 rounded-full blur-3xl" />
+          <div className="absolute top-2/3 left-1/3 w-32 h-32 bg-blue-600/15 rounded-full blur-2xl" />
         </div>
+        <div className="relative z-10 flex flex-col justify-center px-14">
+          <div className="flex items-center gap-3 mb-10">
+            <div className="flex items-center justify-center w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-lg shadow-indigo-500/40">
+              <Calculator className="w-5 h-5 text-white" />
+            </div>
+            <span className="text-white font-semibold text-lg">Rechnungsmanager</span>
+          </div>
+          <h2 className="text-4xl font-bold text-white leading-tight mb-4">
+            Buchhaltung<br />
+            <span className="text-indigo-400">einfach gemacht.</span>
+          </h2>
+          <p className="text-slate-400 text-base leading-relaxed max-w-xs">
+            Verwalten Sie Mandanten, erstellen Sie Rechnungen und behalten Sie den Überblick über alle Zahlungen.
+          </p>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Anmelden</CardTitle>
-            <CardDescription>Geben Sie Ihre Zugangsdaten ein</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Form method="post" className="space-y-4">
+          <div className="mt-12 space-y-4">
+            {[
+              { label: "Mandantenverwaltung", desc: "Alle Firmen im Blick" },
+              { label: "Rechnungserstellung", desc: "Schnell und professionell" },
+              { label: "Zahlungsübersicht", desc: "Offene Posten auf einen Blick" },
+            ].map((feat) => (
+              <div key={feat.label} className="flex items-center gap-3">
+                <div className="w-2 h-2 rounded-full bg-indigo-400 shrink-0" />
+                <div>
+                  <span className="text-slate-200 text-sm font-medium">{feat.label}</span>
+                  <span className="text-slate-500 text-sm"> — {feat.desc}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Right login form */}
+      <div className="flex-1 flex items-center justify-center p-8 bg-slate-50">
+        <div className="w-full max-w-sm animate-fade-in">
+          {/* Mobile logo */}
+          <div className="flex lg:hidden items-center gap-3 mb-8 justify-center">
+            <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-violet-600 shadow-md">
+              <Calculator className="w-5 h-5 text-white" />
+            </div>
+            <span className="font-semibold text-slate-900 text-base">Rechnungsmanager</span>
+          </div>
+
+          <div className="mb-8">
+            <h1 className="text-2xl font-bold text-slate-900">Willkommen zurück</h1>
+            <p className="text-slate-500 mt-1 text-sm">Melden Sie sich mit Ihren Zugangsdaten an</p>
+          </div>
+
+          <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
+            <Form method="post" className="space-y-5">
               {actionData?.error && (
-                <div className="flex items-center gap-2 rounded-lg bg-red-50 border border-red-200 p-3 text-sm text-red-700">
-                  <AlertCircle className="h-4 w-4 shrink-0" />
+                <div className="flex items-center gap-2.5 rounded-xl bg-red-50 border border-red-100 p-3.5 text-sm text-red-700">
+                  <AlertCircle className="h-4 w-4 shrink-0 text-red-500" />
                   {actionData.error}
                 </div>
               )}
@@ -76,12 +118,12 @@ export default function LoginPage() {
                 />
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              <Button type="submit" className="w-full h-10 mt-2" disabled={loading}>
                 {loading ? "Anmelden..." : "Anmelden"}
               </Button>
             </Form>
-          </CardContent>
-        </Card>
+          </div>
+        </div>
       </div>
     </div>
   );

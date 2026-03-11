@@ -1,4 +1,12 @@
 import { Link, useLoaderData, useNavigate } from "react-router";
+
+export const handle = {
+  breadcrumbs: (data: { company: { id: string; name: string } }) => [
+    { label: "Mandanten", href: "/companies" },
+    { label: data.company.name, href: `/companies/${data.company.id}` },
+    { label: "Bearbeiten" },
+  ],
+};
 import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma";
 import { CompanyForm } from "@/components/company/company-form";

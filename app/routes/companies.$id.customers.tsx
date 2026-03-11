@@ -1,5 +1,13 @@
 import { useState } from "react";
-import { Link, useLoaderData, useParams, useRevalidator } from "react-router";
+import { Link, useLoaderData, useRevalidator } from "react-router";
+
+export const handle = {
+  breadcrumbs: (data: { companyId: string; companyName: string }) => [
+    { label: "Mandanten", href: "/companies" },
+    { label: data.companyName, href: `/companies/${data.companyId}` },
+    { label: "Kunden" },
+  ],
+};
 import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
@@ -47,7 +55,7 @@ export async function loader({ request, params }: { request: Request; params: { 
     orderBy: { name: "asc" },
   });
 
-  return { customers, companyId: params.id };
+  return { customers, companyId: params.id, companyName: company.name };
 }
 
 function CustomerForm({

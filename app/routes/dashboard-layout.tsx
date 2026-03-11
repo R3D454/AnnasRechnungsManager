@@ -1,6 +1,6 @@
 import { Outlet, useLoaderData } from "react-router";
 import { requireUser } from "@/session.server";
-import { Sidebar } from "@/components/layout/sidebar";
+import { Topbar } from "@/components/layout/topbar";
 
 export async function loader({ request }: { request: Request }) {
   const user = await requireUser(request);
@@ -11,9 +11,9 @@ export default function DashboardLayout() {
   const { userName } = useLoaderData<typeof loader>();
 
   return (
-    <div className="flex min-h-screen bg-gray-50">
-      <Sidebar userName={userName} />
-      <main className="flex-1 overflow-auto">
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <Topbar userName={userName} />
+      <main className="flex-1">
         <div className="max-w-7xl mx-auto px-6 py-8">
           <Outlet />
         </div>

@@ -1,4 +1,11 @@
 import { Link, useNavigate } from "react-router";
+
+export const handle = {
+  breadcrumbs: () => [
+    { label: "Mandanten", href: "/companies" },
+    { label: "Neuer Mandant" },
+  ],
+};
 import { CompanyForm } from "@/components/company/company-form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChevronLeft } from "lucide-react";

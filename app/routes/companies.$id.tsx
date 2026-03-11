@@ -11,6 +11,13 @@ import {
 } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
 
+export const handle = {
+  breadcrumbs: (data: { company: { id: string; name: string } }) => [
+    { label: "Mandanten", href: "/companies" },
+    { label: data.company.name },
+  ],
+};
+
 const statusLabels: Record<InvoiceStatus, string> = {
   DRAFT: "Entwurf",
   SENT: "Versendet",

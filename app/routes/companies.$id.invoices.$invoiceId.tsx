@@ -1,4 +1,13 @@
 import { Link, useLoaderData, useNavigate, useRevalidator } from "react-router";
+
+export const handle = {
+  breadcrumbs: (data: { invoice: { companyId: string; number: string; company: { name: string } } }) => [
+    { label: "Mandanten", href: "/companies" },
+    { label: data.invoice.company.name, href: `/companies/${data.invoice.companyId}` },
+    { label: "Rechnungen", href: `/companies/${data.invoice.companyId}/invoices` },
+    { label: data.invoice.number },
+  ],
+};
 import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma";
 import { useState } from "react";
