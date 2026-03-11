@@ -52,7 +52,6 @@ model Customer {
   companyId String
   company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
   name      String
-  vatId     String?
   taxId     String?
   address   String
   zip       String

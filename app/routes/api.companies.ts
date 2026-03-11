@@ -6,7 +6,6 @@ const companySchema = z.object({
   name: z.string().min(1),
   legalForm: z.string().optional(),
   taxId: z.string().optional(),
-  vatId: z.string().optional(),
   address: z.string().min(1),
   zip: z.string().min(1),
   city: z.string().min(1),

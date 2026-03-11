@@ -12,57 +12,100 @@ Buchhaltungs- und Rechnungsverwaltungssystem für Mandanten.
 ## Tech Stack
 
 - **React Router v7** (Framework Mode, SSR) + TypeScript
-- **MariaDB / MySQL** via Prisma ORM
-- **Cookie-Session-Auth** (bcryptjs, kein NextAuth)
+- **MariaDB** via Prisma ORM
+- **Cookie-Session-Auth** (bcryptjs)
 - **Tailwind CSS v4** + shadcn/ui
 - **@react-pdf/renderer** für PDF-Generierung
 - **Docker** für die Datenbank
 
-## Setup
+## Lokale Entwicklung
 
-### 1. Voraussetzungen
+### Voraussetzungen
 
-- Node.js 20+
-- Docker (für MariaDB)
+- Node.js 22+
+- Docker + Docker Compose
 
-### 2. Installation
+### Installation
 
 ```bash
 npm install
 ```
 
-### 3. Umgebungsvariablen konfigurieren
+### Umgebungsvariablen
 
-```bash
-cp .env.example .env
-# DATABASE_URL und AUTH_SECRET in .env anpassen
+`.env` im Projektstamm anlegen:
+
+```env
+DATABASE_URL="mysql://annas_user:annas_password@localhost:3306/annas_rechnungen"
+AUTH_SECRET="dein-zufaelliger-secret-string"
 ```
 
-### 4. Datenbank einrichten
+### Datenbank einrichten
 
 ```bash
-npx prisma migrate dev --name init
-npx prisma db seed
+npm run db:migrate   # Migrationen ausführen
+npm run db:seed      # Demo-Daten einspielen
 ```
 
 **Demo-Zugangsdaten:** `anna@example.de` / `demo123`
 
-### 5. Entwicklungsserver starten
+### Entwicklungsserver starten
 
 ```bash
 npm run dev
 ```
 
-Startet Docker (PostgreSQL) und den Vite-Dev-Server.
+Startet automatisch MariaDB via Docker und den Vite-Dev-Server auf `http://localhost:5173`.
 
-Öffne [http://localhost:5173](http://localhost:5173)
+## Scripts
 
-## Datenbank-Kommandos
+| Befehl | Beschreibung |
+|---|---|
+| `npm run dev` | DB starten + Dev-Server |
+| `npm run build` | Produktions-Build |
+| `npm run start` | Produktions-Server starten |
+| `npm run typecheck` | TypeScript prüfen |
+| `npm run db:migrate` | Prisma Migrationen ausführen |
+| `npm run db:seed` | Demo-Daten einspielen |
+| `npm run db:studio` | Prisma Studio öffnen |
+
+## Deployment
+
+### Docker Compose
+
+Startet App + MariaDB als komplettes Setup:
 
 ```bash
-npm run db:migrate   # Migrationen ausführen
-npm run db:seed      # Demo-Daten einspielen
-npm run db:studio    # Prisma Studio öffnen
+docker compose up -d
+```
+
+Die App läuft auf `http://localhost:3000`. Migrationen werden automatisch beim Start ausgeführt.
+
+> `AUTH_SECRET` muss als Umgebungsvariable gesetzt sein.
+
+### Kubernetes
+
+```bash
+# Secret-Werte in k8s.yml anpassen (auth-secret, ggf. Passwörter), dann:
+kubectl apply -f k8s.yml
+```
+
+Das Manifest (`k8s.yml`) enthält: Namespace, Secret, MariaDB (PVC + Deployment + Service), App (Deployment mit Init-Container für Migrationen + Service + Ingress).
+
+## Projektstruktur
+
+```
+app/
+  components/         UI-Komponenten (ui/, layout/, company/, invoice/)
+  lib/                Hilfsfunktionen (prisma, tax, utils, invoice-number)
+  routes/             Route-Dateien (React Router v7, file-based)
+  session.server.ts   Auth (Login, Logout, Session)
+  types/              Gemeinsame TypeScript-Typen
+db/
+  docker-compose.yml  MariaDB + phpMyAdmin für lokale Entwicklung
+prisma/
+  schema.prisma       Datenbankschema
+  migrations/         Migrationsverlauf
 ```
 
 ## Rechnungs-Compliance (§14 UStG)

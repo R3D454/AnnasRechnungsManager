@@ -22,7 +22,7 @@ import { z } from "zod";
 
 const schema = z.object({
   name: z.string().min(1, "Pflichtfeld"),
-  vatId: z.string().optional(),
+  // vatId: z.string().optional(),
   address: z.string().min(1, "Pflichtfeld"),
   zip: z.string().min(1, "Pflichtfeld"),
   city: z.string().min(1, "Pflichtfeld"),
@@ -35,7 +35,7 @@ type FormData = z.infer<typeof schema>;
 interface Customer {
   id: string;
   name: string;
-  vatId?: string | null;
+  // vatId?: string | null;
   address: string;
   zip: string;
   city: string;
@@ -93,10 +93,10 @@ function CustomerForm({
           <Label>Ort *</Label>
           <Input {...register("city")} placeholder="Berlin" />
         </div>
-        <div className="space-y-1.5">
+        {/* <div className="space-y-1.5">
           <Label>USt-IdNr.</Label>
           <Input {...register("vatId")} placeholder="DE..." />
-        </div>
+        </div> */}
         <div className="space-y-1.5">
           <Label>E-Mail</Label>
           <Input {...register("email")} type="email" placeholder="kontakt@..." />
@@ -185,7 +185,6 @@ export default function CustomersPage() {
                 address: editCustomer.address,
                 zip: editCustomer.zip,
                 city: editCustomer.city,
-                vatId: editCustomer.vatId ?? undefined,
                 email: editCustomer.email ?? undefined,
                 phone: editCustomer.phone ?? undefined,
               }}
@@ -212,7 +211,7 @@ export default function CustomersPage() {
                   <div>
                     <p className="font-semibold text-gray-900">{customer.name}</p>
                     <p className="text-sm text-gray-500 mt-0.5">{customer.address}, {customer.zip} {customer.city}</p>
-                    {customer.vatId && <p className="text-xs text-gray-400 mt-0.5">USt-IdNr.: {customer.vatId}</p>}
+                    {/* {customer.vatId && <p className="text-xs text-gray-400 mt-0.5">USt-IdNr.: {customer.vatId}</p>} */}
                     <div className="flex gap-3 mt-2">
                       {customer.email && (
                         <span className="flex items-center gap-1 text-xs text-gray-500">
