@@ -204,6 +204,7 @@ interface InvoicePDFProps {
     deliveryDate?: Date | string | null;
     dueDate: Date | string;
     notes?: string | null;
+    kleinunternehmer?: boolean;
     netTotal: number | string | { toString(): string };
     taxTotal: number | string | { toString(): string };
     grossTotal: number | string | { toString(): string };
@@ -223,7 +224,6 @@ interface InvoicePDFProps {
     };
     customer: {
       name: string;
-      vatId?: string | null;
       address: string;
       zip: string;
       city: string;
@@ -296,11 +296,6 @@ export function InvoicePDFDocument({ invoice }: InvoicePDFProps) {
             {invoice.customer.country !== "DE" && (
               <Text style={styles.addressLine}>{invoice.customer.country}</Text>
             )}
-            {invoice.customer.vatId && (
-              <Text style={{ ...styles.addressLine, marginTop: 3 }}>
-                USt-IdNr.: {invoice.customer.vatId}
-              </Text>
-            )}
           </View>
         </View>
 
@@ -330,9 +325,13 @@ export function InvoicePDFDocument({ invoice }: InvoicePDFProps) {
           <Text style={{ ...styles.tableHeaderText, ...styles.col_desc }}>Beschreibung</Text>
           <Text style={{ ...styles.tableHeaderText, ...styles.col_qty }}>Menge</Text>
           <Text style={{ ...styles.tableHeaderText, ...styles.col_unit }}>Einh.</Text>
-          <Text style={{ ...styles.tableHeaderText, ...styles.col_price }}>EP (netto)</Text>
-          <Text style={{ ...styles.tableHeaderText, ...styles.col_tax }}>MwSt.</Text>
-          <Text style={{ ...styles.tableHeaderText, ...styles.col_total }}>Gesamt (brutto)</Text>
+          <Text style={{ ...styles.tableHeaderText, ...styles.col_price }}>
+            {invoice.kleinunternehmer ? "EP (brutto)" : "EP (netto)"}
+          </Text>
+          {!invoice.kleinunternehmer && (
+            <Text style={{ ...styles.tableHeaderText, ...styles.col_tax }}>MwSt.</Text>
+          )}
+          <Text style={{ ...styles.tableHeaderText, ...styles.col_total }}>Gesamt</Text>
         </View>
 
         {invoice.items.map((item, idx) => (
@@ -342,7 +341,9 @@ export function InvoicePDFDocument({ invoice }: InvoicePDFProps) {
             <Text style={{ ...styles.col_qty, fontSize: 9 }}>{n(item.quantity)}</Text>
             <Text style={{ ...styles.col_unit, fontSize: 9 }}>{item.unit ?? ""}</Text>
             <Text style={{ ...styles.col_price, fontSize: 9 }}>{formatMoney(n(item.unitPrice))}</Text>
-            <Text style={{ ...styles.col_tax, fontSize: 9 }}>{n(item.taxRate)}%</Text>
+            {!invoice.kleinunternehmer && (
+              <Text style={{ ...styles.col_tax, fontSize: 9 }}>{n(item.taxRate)}%</Text>
+            )}
             <Text style={{ ...styles.col_total, fontSize: 9, fontFamily: "Helvetica-Bold" }}>
               {formatMoney(n(item.grossAmount))}
             </Text>
@@ -351,20 +352,36 @@ export function InvoicePDFDocument({ invoice }: InvoicePDFProps) {
 
         <View style={styles.totalsSection}>
           <View style={styles.totalsTable}>
-            <View style={styles.totalsRow}>
-              <Text style={styles.totalsLabel}>Nettobetrag</Text>
-              <Text style={styles.totalsValue}>{formatMoney(n(invoice.netTotal))}</Text>
-            </View>
-            {Object.entries(taxGroups).map(([rate, { net, tax }]) => (
-              <View key={rate} style={styles.totalsRow}>
-                <Text style={styles.totalsLabel}>MwSt. {rate}% auf {formatMoney(net)}</Text>
-                <Text style={styles.totalsValue}>{formatMoney(tax)}</Text>
-              </View>
-            ))}
-            <View style={styles.totalsFinalRow}>
-              <Text style={styles.totalsFinalLabel}>Gesamtbetrag (inkl. MwSt.)</Text>
-              <Text style={styles.totalsFinalValue}>{formatMoney(n(invoice.grossTotal))}</Text>
-            </View>
+            {invoice.kleinunternehmer ? (
+              <>
+                <View style={styles.totalsFinalRow}>
+                  <Text style={styles.totalsFinalLabel}>Gesamtbetrag</Text>
+                  <Text style={styles.totalsFinalValue}>{formatMoney(n(invoice.grossTotal))}</Text>
+                </View>
+                <View style={styles.totalsRow}>
+                  <Text style={{ ...styles.totalsLabel, fontSize: 8, fontStyle: "italic" }}>
+                    Dieser Rechnungsbetrag enthält nach §19 Abs. 1 UStG keine USt.
+                  </Text>
+                </View>
+              </>
+            ) : (
+              <>
+                <View style={styles.totalsRow}>
+                  <Text style={styles.totalsLabel}>Nettobetrag</Text>
+                  <Text style={styles.totalsValue}>{formatMoney(n(invoice.netTotal))}</Text>
+                </View>
+                {Object.entries(taxGroups).map(([rate, { net, tax }]) => (
+                  <View key={rate} style={styles.totalsRow}>
+                    <Text style={styles.totalsLabel}>MwSt. {rate}% auf {formatMoney(net)}</Text>
+                    <Text style={styles.totalsValue}>{formatMoney(tax)}</Text>
+                  </View>
+                ))}
+                <View style={styles.totalsFinalRow}>
+                  <Text style={styles.totalsFinalLabel}>Gesamtbetrag (inkl. MwSt.)</Text>
+                  <Text style={styles.totalsFinalValue}>{formatMoney(n(invoice.grossTotal))}</Text>
+                </View>
+              </>
+            )}
           </View>
         </View>
 

@@ -21,6 +21,7 @@ const schema = z.object({
   bankBic: z.string().optional(),
   bankName: z.string().optional(),
   invoicePrefix: z.string().optional(),
+  kleinunternehmer: z.boolean().optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -44,7 +45,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
 export function CompanyForm({ defaultValues, onSubmit, submitLabel = "Speichern" }: CompanyFormProps) {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
     resolver: zodResolver(schema),
-    defaultValues: { country: "DE", invoicePrefix: "RE", ...defaultValues },
+    defaultValues: { country: "DE", invoicePrefix: "RE", kleinunternehmer: false, ...defaultValues },
   });
 
   return (
@@ -124,6 +125,18 @@ export function CompanyForm({ defaultValues, onSubmit, submitLabel = "Speichern"
           </Field>
         </div>
         <p className="text-xs text-gray-500 mt-1">Format: {"{Präfix}"}-{"{Jahr}"}-{"{Nummer}"} z.B. RE-2024-001</p>
+        <div className="mt-4">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              {...register("kleinunternehmer")}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <span className="text-sm text-gray-700">
+              Kleinunternehmer (§19 UStG) — keine Umsatzsteuer
+            </span>
+          </label>
+        </div>
       </div>
 
       <div className="flex justify-end pt-2">

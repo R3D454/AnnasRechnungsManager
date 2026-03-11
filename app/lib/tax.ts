@@ -15,6 +15,14 @@ export function calcItemAmounts(
   return { netAmount, taxAmount, grossAmount };
 }
 
+export function calcItemAmountsKleinunternehmer(
+  quantity: number,
+  unitPrice: number
+) {
+  const grossAmount = Math.round(quantity * unitPrice * 100) / 100;
+  return { netAmount: grossAmount, taxAmount: 0, grossAmount };
+}
+
 export function calcInvoiceTotals(
   items: Array<{ netAmount: number; taxAmount: number; grossAmount: number }>
 ) {

@@ -9,7 +9,7 @@ services:
       MYSQL_USER: annas_user
       MYSQL_PASSWORD: annas_password
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - ./data:/var/lib/mysql
     ports:
       - "3306:3306"
     networks:
@@ -38,9 +38,6 @@ services:
         condition: service_healthy
     networks:
       - db_network
-
-volumes:
-  mariadb_data:
 
 networks:
   db_network:

@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
-  url      = env("DATABASE_URL")
+  provider          = "mysql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
@@ -37,6 +38,7 @@ model Company {
   bankName        String?
   invoicePrefix   String     @default("RE")
   invoiceSequence Int        @default(0)
+  kleinunternehmer Boolean   @default(false)
   userId          String
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   customers       Customer[]
@@ -76,8 +78,9 @@ model Invoice {
   issueDate    DateTime
   deliveryDate DateTime?
   dueDate      DateTime
-  status       InvoiceStatus @default(DRAFT)
-  notes        String?       @db.Text
+  status          InvoiceStatus @default(DRAFT)
+  kleinunternehmer Boolean       @default(false)
+  notes           String?        @db.Text
   items        InvoiceItem[]
   netTotal     Decimal       @db.Decimal(10, 2)
   taxTotal     Decimal       @db.Decimal(10, 2)

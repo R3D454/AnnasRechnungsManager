@@ -22,6 +22,7 @@ const invoiceSchema = z.object({
   deliveryDate: z.string().optional(),
   dueDate: z.string(),
   notes: z.string().optional(),
+  kleinunternehmer: z.boolean().optional().default(false),
   items: z.array(itemSchema).min(1),
   netTotal: z.number(),
   taxTotal: z.number(),

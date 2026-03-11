@@ -1,5 +1,5 @@
-import { useMatches, useLocation, Link } from "react-router";
-import { ChevronRight, LayoutDashboard } from "lucide-react";
+import { useMatches, useLocation, Link, Form } from "react-router";
+import { ChevronRight, LayoutDashboard, LogOut } from "lucide-react";
 
 interface Breadcrumb {
   label: string;
@@ -107,7 +107,7 @@ export function Topbar({ userName }: { userName?: string | null }) {
         </Link>
       )}
 
-      {/* User */}
+      {/* User + Logout */}
       {userName && (
         <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginLeft: "1rem", flexShrink: 0 }}>
           <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{userName}</span>
@@ -127,6 +127,23 @@ export function Topbar({ userName }: { userName?: string | null }) {
           >
             {getInitials(userName)}
           </div>
+          <Form method="post" action="/logout">
+            <button
+              type="submit"
+              title="Abmelden"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#94a3b8",
+                padding: "0.25rem",
+              }}
+            >
+              <LogOut style={{ width: "1rem", height: "1rem" }} />
+            </button>
+          </Form>
         </div>
       )}
     </header>

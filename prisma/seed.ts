@@ -51,7 +51,6 @@ async function main() {
       id: "demo-customer-1",
       companyId: company.id,
       name: "Beispiel AG",
-      vatId: "DE987654321",
       address: "Beispielweg 5",
       zip: "20095",
       city: "Hamburg",
@@ -61,8 +60,11 @@ async function main() {
   console.log(`✓ Customer created: ${customer.name}`);
 
   // Create demo invoice
-  const invoice = await prisma.invoice.create({
-    data: {
+  const invoice = await prisma.invoice.upsert({
+    where: { id: "demo-invoice-1" },
+    update: {},
+    create: {
+      id: "demo-invoice-1",
       number: "RE-2024-001",
       companyId: company.id,
       customerId: customer.id,

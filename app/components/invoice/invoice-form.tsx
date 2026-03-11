@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { calcItemAmounts, calcInvoiceTotals, formatCurrency, TAX_RATES } from "@/lib/tax";
+import { calcItemAmounts, calcItemAmountsKleinunternehmer, calcInvoiceTotals, formatCurrency, TAX_RATES } from "@/lib/tax";
 import { Plus, Trash2 } from "lucide-react";
 
 interface Customer {
@@ -39,6 +39,7 @@ interface InvoiceFormProps {
   companyId: string;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
   defaultValues?: Partial<InvoiceFormValues>;
+  defaultKleinunternehmer?: boolean;
 }
 
 const defaultItem = (): ItemFormData => ({
@@ -53,9 +54,10 @@ const defaultItem = (): ItemFormData => ({
   grossAmount: 0,
 });
 
-export function InvoiceForm({ customers, companyId, onSubmit }: InvoiceFormProps) {
+export function InvoiceForm({ customers, companyId, onSubmit, defaultKleinunternehmer = false }: InvoiceFormProps) {
   const today = new Date().toISOString().split("T")[0];
   const dueDefault = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+  const [kleinunternehmer, setKleinunternehmer] = useState(defaultKleinunternehmer);
 
   const { register, handleSubmit, watch, setValue, control, formState: { errors, isSubmitting } } = useForm<InvoiceFormValues>({
     defaultValues: {
@@ -76,12 +78,19 @@ export function InvoiceForm({ customers, companyId, onSubmit }: InvoiceFormProps
     if (!item) return;
     const qty = parseFloat(item.quantity) || 0;
     const price = parseFloat(item.unitPrice) || 0;
-    const rate = parseFloat(item.taxRate) || 0;
-    const { netAmount, taxAmount, grossAmount } = calcItemAmounts(qty, price, rate);
-    setValue(`items.${index}.netAmount`, netAmount);
-    setValue(`items.${index}.taxAmount`, taxAmount);
-    setValue(`items.${index}.grossAmount`, grossAmount);
-  }, [watchedItems, setValue]);
+    if (kleinunternehmer) {
+      const { netAmount, taxAmount, grossAmount } = calcItemAmountsKleinunternehmer(qty, price);
+      setValue(`items.${index}.netAmount`, netAmount);
+      setValue(`items.${index}.taxAmount`, taxAmount);
+      setValue(`items.${index}.grossAmount`, grossAmount);
+    } else {
+      const rate = parseFloat(item.taxRate) || 0;
+      const { netAmount, taxAmount, grossAmount } = calcItemAmounts(qty, price, rate);
+      setValue(`items.${index}.netAmount`, netAmount);
+      setValue(`items.${index}.taxAmount`, taxAmount);
+      setValue(`items.${index}.grossAmount`, grossAmount);
+    }
+  }, [watchedItems, setValue, kleinunternehmer]);
 
   const totals = calcInvoiceTotals(
     watchedItems.map((item) => ({
@@ -95,6 +104,20 @@ export function InvoiceForm({ customers, companyId, onSubmit }: InvoiceFormProps
     const items = data.items.map((item, i) => {
       const qty = parseFloat(item.quantity) || 0;
       const price = parseFloat(item.unitPrice) || 0;
+      if (kleinunternehmer) {
+        const { netAmount, taxAmount, grossAmount } = calcItemAmountsKleinunternehmer(qty, price);
+        return {
+          position: i + 1,
+          description: item.description,
+          quantity: qty,
+          unit: item.unit || undefined,
+          unitPrice: price,
+          taxRate: 0,
+          netAmount,
+          taxAmount,
+          grossAmount,
+        };
+      }
       const rate = parseFloat(item.taxRate) || 0;
       const { netAmount, taxAmount, grossAmount } = calcItemAmounts(qty, price, rate);
       return {
@@ -119,6 +142,7 @@ export function InvoiceForm({ customers, companyId, onSubmit }: InvoiceFormProps
       deliveryDate: data.deliveryDate || undefined,
       dueDate: data.dueDate,
       notes: data.notes || undefined,
+      kleinunternehmer,
       items,
       ...totals,
     });
@@ -140,6 +164,23 @@ export function InvoiceForm({ customers, companyId, onSubmit }: InvoiceFormProps
             </SelectContent>
           </Select>
           {errors.customerId && <p className="text-xs text-red-600">Pflichtfeld</p>}
+        </div>
+
+        <div className="flex items-end pb-0.5">
+          <label className="flex items-center gap-2 cursor-pointer select-none">
+            <input
+              type="checkbox"
+              checked={kleinunternehmer}
+              onChange={(e) => {
+                setKleinunternehmer(e.target.checked);
+                watchedItems.forEach((_, i) => recalcItem(i));
+              }}
+              className="h-4 w-4 rounded border-gray-300"
+            />
+            <span className="text-sm text-gray-700">
+              Kleinunternehmer (§19 UStG) — keine Umsatzsteuer
+            </span>
+          </label>
         </div>
       </div>
 
@@ -172,18 +213,18 @@ export function InvoiceForm({ customers, companyId, onSubmit }: InvoiceFormProps
         </div>
 
         <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <div className="grid grid-cols-12 gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600">
+          <div className={`grid gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600 ${kleinunternehmer ? "grid-cols-11" : "grid-cols-12"}`}>
             <div className="col-span-4">Beschreibung</div>
             <div className="col-span-1">Menge</div>
             <div className="col-span-1">Einh.</div>
-            <div className="col-span-2">Einzelpreis</div>
-            <div className="col-span-1">MwSt.</div>
+            <div className="col-span-2">{kleinunternehmer ? "Einzelpreis (brutto)" : "Einzelpreis"}</div>
+            {!kleinunternehmer && <div className="col-span-1">MwSt.</div>}
             <div className="col-span-2 text-right">Gesamt (brutto)</div>
             <div className="col-span-1"></div>
           </div>
 
           {fields.map((field, index) => (
-            <div key={field.id} className="grid grid-cols-12 gap-2 px-3 py-2.5 border-b border-gray-100 last:border-0 items-center">
+            <div key={field.id} className={`grid gap-2 px-3 py-2.5 border-b border-gray-100 last:border-0 items-center ${kleinunternehmer ? "grid-cols-11" : "grid-cols-12"}`}>
               <div className="col-span-4">
                 <Input
                   {...register(`items.${index}.description`, { required: true })}
@@ -212,26 +253,28 @@ export function InvoiceForm({ customers, companyId, onSubmit }: InvoiceFormProps
                   onBlur={() => recalcItem(index)}
                 />
               </div>
-              <div className="col-span-1">
-                <Select
-                  defaultValue="19"
-                  onValueChange={(v) => {
-                    setValue(`items.${index}.taxRate`, v);
-                    recalcItem(index);
-                  }}
-                >
-                  <SelectTrigger className="text-sm">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TAX_RATES.map((r) => (
-                      <SelectItem key={r.value} value={String(r.value)}>
-                        {r.value}%
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+              {!kleinunternehmer && (
+                <div className="col-span-1">
+                  <Select
+                    defaultValue="19"
+                    onValueChange={(v) => {
+                      setValue(`items.${index}.taxRate`, v);
+                      recalcItem(index);
+                    }}
+                  >
+                    <SelectTrigger className="text-sm">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TAX_RATES.map((r) => (
+                        <SelectItem key={r.value} value={String(r.value)}>
+                          {r.value}%
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
               <div className="col-span-2 text-right text-sm font-medium text-gray-900">
                 {formatCurrency(watchedItems[index]?.grossAmount ?? 0)}
               </div>
@@ -254,18 +297,32 @@ export function InvoiceForm({ customers, companyId, onSubmit }: InvoiceFormProps
 
         <div className="mt-4 flex justify-end">
           <div className="w-64 space-y-1.5">
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>Netto</span>
-              <span>{formatCurrency(totals.netTotal)}</span>
-            </div>
-            <div className="flex justify-between text-sm text-gray-600">
-              <span>MwSt.</span>
-              <span>{formatCurrency(totals.taxTotal)}</span>
-            </div>
-            <div className="flex justify-between text-base font-semibold text-gray-900 border-t border-gray-200 pt-1.5">
-              <span>Gesamt (brutto)</span>
-              <span>{formatCurrency(totals.grossTotal)}</span>
-            </div>
+            {kleinunternehmer ? (
+              <>
+                <div className="flex justify-between text-base font-semibold text-gray-900 border-t border-gray-200 pt-1.5">
+                  <span>Gesamtbetrag</span>
+                  <span>{formatCurrency(totals.grossTotal)}</span>
+                </div>
+                <p className="text-xs text-gray-500 pt-1">
+                  Dieser Rechnungsbetrag enthält nach §19 Abs. 1 UStG keine USt.
+                </p>
+              </>
+            ) : (
+              <>
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>Netto</span>
+                  <span>{formatCurrency(totals.netTotal)}</span>
+                </div>
+                <div className="flex justify-between text-sm text-gray-600">
+                  <span>MwSt.</span>
+                  <span>{formatCurrency(totals.taxTotal)}</span>
+                </div>
+                <div className="flex justify-between text-base font-semibold text-gray-900 border-t border-gray-200 pt-1.5">
+                  <span>Gesamt (brutto)</span>
+                  <span>{formatCurrency(totals.grossTotal)}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
       </div>

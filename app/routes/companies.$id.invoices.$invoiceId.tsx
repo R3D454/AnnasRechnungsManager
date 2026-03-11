@@ -45,6 +45,7 @@ export async function loader({
       netTotal: Number(invoice.netTotal),
       taxTotal: Number(invoice.taxTotal),
       grossTotal: Number(invoice.grossTotal),
+      kleinunternehmer: invoice.kleinunternehmer,
       issueDate: invoice.issueDate.toISOString(),
       dueDate: invoice.dueDate.toISOString(),
       deliveryDate: invoice.deliveryDate?.toISOString() ?? null,
@@ -184,9 +185,6 @@ export default function InvoiceDetailPage() {
                   <p className="font-semibold text-gray-900">{invoice.customer.name}</p>
                   <p className="text-sm text-gray-600">{invoice.customer.address}</p>
                   <p className="text-sm text-gray-600">{invoice.customer.zip} {invoice.customer.city}</p>
-                  {invoice.customer.vatId && (
-                    <p className="text-xs text-gray-500 mt-1">USt-IdNr.: {invoice.customer.vatId}</p>
-                  )}
                 </div>
               </div>
 
@@ -242,20 +240,34 @@ export default function InvoiceDetailPage() {
 
               <div className="flex justify-end">
                 <div className="w-72 space-y-1.5">
-                  <div className="flex justify-between text-sm text-gray-600">
-                    <span>Nettobetrag</span>
-                    <span>{formatCurrency(invoice.netTotal)}</span>
-                  </div>
-                  {Object.entries(taxGroups).map(([rate, { net, tax }]) => (
-                    <div key={rate} className="flex justify-between text-sm text-gray-600">
-                      <span>MwSt. {rate}% auf {formatCurrency(net)}</span>
-                      <span>{formatCurrency(tax)}</span>
-                    </div>
-                  ))}
-                  <div className="flex justify-between text-base font-bold text-gray-900 border-t border-gray-300 pt-2">
-                    <span>Gesamtbetrag (brutto)</span>
-                    <span>{formatCurrency(invoice.grossTotal)}</span>
-                  </div>
+                  {invoice.kleinunternehmer ? (
+                    <>
+                      <div className="flex justify-between text-base font-bold text-gray-900 border-t border-gray-300 pt-2">
+                        <span>Gesamtbetrag</span>
+                        <span>{formatCurrency(invoice.grossTotal)}</span>
+                      </div>
+                      <p className="text-xs text-gray-500 pt-1">
+                        Dieser Rechnungsbetrag enthält nach §19 Abs. 1 UStG keine USt.
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="flex justify-between text-sm text-gray-600">
+                        <span>Nettobetrag</span>
+                        <span>{formatCurrency(invoice.netTotal)}</span>
+                      </div>
+                      {Object.entries(taxGroups).map(([rate, { net, tax }]) => (
+                        <div key={rate} className="flex justify-between text-sm text-gray-600">
+                          <span>MwSt. {rate}% auf {formatCurrency(net)}</span>
+                          <span>{formatCurrency(tax)}</span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-base font-bold text-gray-900 border-t border-gray-300 pt-2">
+                        <span>Gesamtbetrag (brutto)</span>
+                        <span>{formatCurrency(invoice.grossTotal)}</span>
+                      </div>
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -285,18 +297,30 @@ export default function InvoiceDetailPage() {
               <CardTitle className="text-sm">Zusammenfassung</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <div>
-                <p className="text-xs text-gray-500">Netto</p>
-                <p className="font-medium text-gray-900">{formatCurrency(invoice.netTotal)}</p>
-              </div>
-              <div>
-                <p className="text-xs text-gray-500">MwSt.</p>
-                <p className="font-medium text-gray-900">{formatCurrency(invoice.taxTotal)}</p>
-              </div>
-              <div className="border-t border-gray-200 pt-2">
-                <p className="text-xs text-gray-500">Brutto</p>
-                <p className="text-lg font-bold text-gray-900">{formatCurrency(invoice.grossTotal)}</p>
-              </div>
+              {invoice.kleinunternehmer ? (
+                <>
+                  <div className="border-t border-gray-200 pt-2">
+                    <p className="text-xs text-gray-500">Gesamtbetrag</p>
+                    <p className="text-lg font-bold text-gray-900">{formatCurrency(invoice.grossTotal)}</p>
+                  </div>
+                  <p className="text-xs text-gray-400">Keine USt. gem. §19 UStG</p>
+                </>
+              ) : (
+                <>
+                  <div>
+                    <p className="text-xs text-gray-500">Netto</p>
+                    <p className="font-medium text-gray-900">{formatCurrency(invoice.netTotal)}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs text-gray-500">MwSt.</p>
+                    <p className="font-medium text-gray-900">{formatCurrency(invoice.taxTotal)}</p>
+                  </div>
+                  <div className="border-t border-gray-200 pt-2">
+                    <p className="text-xs text-gray-500">Brutto</p>
+                    <p className="text-lg font-bold text-gray-900">{formatCurrency(invoice.grossTotal)}</p>
+                  </div>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
