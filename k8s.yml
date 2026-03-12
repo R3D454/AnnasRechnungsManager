@@ -1,0 +1,198 @@
+---
+# Namespace
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: annas-rechnungsmanager
+
+---
+# Secret
+apiVersion: v1
+kind: Secret
+metadata:
+  name: annas-secrets
+  namespace: annas-rechnungsmanager
+type: Opaque
+stringData:
+  db-root-password: rootpassword
+  db-password: annas_password
+  auth-secret: your-random-secret-here
+  database-url: mysql://annas_user:annas_password@mariadb-service:3306/annas_rechnungen
+
+---
+# MariaDB PersistentVolumeClaim
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mariadb-pvc
+  namespace: annas-rechnungsmanager
+spec:
+  accessModes:
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: 5Gi
+
+---
+# MariaDB Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mariadb
+  namespace: annas-rechnungsmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mariadb
+  template:
+    metadata:
+      labels:
+        app: mariadb
+    spec:
+      containers:
+        - name: mariadb
+          image: mariadb:11
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: annas-secrets
+                  key: db-root-password
+            - name: MYSQL_DATABASE
+              value: annas_rechnungen
+            - name: MYSQL_USER
+              value: annas_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: annas-secrets
+                  key: db-password
+          volumeMounts:
+            - name: mariadb-storage
+              mountPath: /var/lib/mysql
+          livenessProbe:
+            exec:
+              command: ["healthcheck.sh", "--connect", "--innodb_initialized"]
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            exec:
+              command: ["healthcheck.sh", "--connect", "--innodb_initialized"]
+            initialDelaySeconds: 10
+            periodSeconds: 5
+      volumes:
+        - name: mariadb-storage
+          persistentVolumeClaim:
+            claimName: mariadb-pvc
+
+---
+# MariaDB Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: mariadb-service
+  namespace: annas-rechnungsmanager
+spec:
+  selector:
+    app: mariadb
+  ports:
+    - port: 3306
+      targetPort: 3306
+
+---
+# App Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: annas-app
+  namespace: annas-rechnungsmanager
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: annas-app
+  template:
+    metadata:
+      labels:
+        app: annas-app
+    spec:
+      initContainers:
+        - name: migrate
+          image: annas-rechnungsmanager:latest
+          command: ["npx", "prisma", "migrate", "deploy"]
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: annas-secrets
+                  key: database-url
+      containers:
+        - name: annas-app
+          image: annas-rechnungsmanager:latest
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: annas-secrets
+                  key: database-url
+            - name: AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: annas-secrets
+                  key: auth-secret
+            - name: NODE_ENV
+              value: production
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 3000
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 250m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+
+---
+# App Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: annas-app-service
+  namespace: annas-rechnungsmanager
+spec:
+  selector:
+    app: annas-app
+  ports:
+    - port: 80
+      targetPort: 3000
+
+---
+# Ingress
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: annas-app-ingress
+  namespace: annas-rechnungsmanager
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+spec:
+  rules:
+    - host: rechnungsmanager.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: annas-app-service
+                port:
+                  number: 80

@@ -5,7 +5,6 @@ import { z } from "zod";
 const customerSchema = z.object({
   companyId: z.string().min(1),
   name: z.string().min(1),
-  vatId: z.string().optional(),
   taxId: z.string().optional(),
   address: z.string().min(1),
   zip: z.string().min(1),

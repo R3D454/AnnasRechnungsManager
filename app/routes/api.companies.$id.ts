@@ -18,6 +18,7 @@ const companySchema = z.object({
   bankBic: z.string().optional(),
   bankName: z.string().optional(),
   invoicePrefix: z.string().optional(),
+  kleinunternehmer: z.boolean().optional(),
 });
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {

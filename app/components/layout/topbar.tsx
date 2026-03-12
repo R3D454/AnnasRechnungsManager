@@ -1,5 +1,5 @@
-import { useMatches, Link } from "react-router";
-import { ChevronRight } from "lucide-react";
+import { useMatches, useLocation, Link, Form } from "react-router";
+import { ChevronRight, LayoutDashboard, LogOut } from "lucide-react";
 
 interface Breadcrumb {
   label: string;
@@ -26,6 +26,8 @@ function getInitials(name?: string | null): string {
 
 export function Topbar({ userName }: { userName?: string | null }) {
   const matches = useMatches();
+  const location = useLocation();
+  const isOnDashboard = location.pathname === "/";
 
   const activeMatch = [...matches].reverse().find((m) => isBreadcrumbHandle(m.handle));
   const breadcrumbs: Breadcrumb[] =
@@ -83,7 +85,29 @@ export function Topbar({ userName }: { userName?: string | null }) {
         )}
       </nav>
 
-      {/* User */}
+      {/* Dashboard Button */}
+      {!isOnDashboard && (
+        <Link
+          to="/"
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.375rem",
+            fontSize: "0.875rem",
+            color: "#64748b",
+            textDecoration: "none",
+            padding: "0.375rem 0.75rem",
+            borderRadius: "0.375rem",
+            border: "1px solid #e2e8f0",
+            flexShrink: 0,
+          }}
+        >
+          <LayoutDashboard className="h-4 w-4" />
+          Dashboard
+        </Link>
+      )}
+
+      {/* User + Logout */}
       {userName && (
         <div style={{ display: "flex", alignItems: "center", gap: "0.625rem", marginLeft: "1rem", flexShrink: 0 }}>
           <span style={{ fontSize: "0.875rem", color: "#64748b" }}>{userName}</span>
@@ -103,6 +127,23 @@ export function Topbar({ userName }: { userName?: string | null }) {
           >
             {getInitials(userName)}
           </div>
+          <Form method="post" action="/logout">
+            <button
+              type="submit"
+              title="Abmelden"
+              style={{
+                display: "flex",
+                alignItems: "center",
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: "#94a3b8",
+                padding: "0.25rem",
+              }}
+            >
+              <LogOut style={{ width: "1rem", height: "1rem" }} />
+            </button>
+          </Form>
         </div>
       )}
     </header>

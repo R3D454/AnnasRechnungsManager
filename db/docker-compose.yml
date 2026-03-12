@@ -9,9 +9,11 @@ services:
       MYSQL_USER: annas_user
       MYSQL_PASSWORD: annas_password
     volumes:
-      - mariadb_data:/var/lib/mysql
+      - ./data:/var/lib/mysql
+    ports:
+      - "3306:3306"
     networks:
-      - app_network
+      - db_network
     healthcheck:
       test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
       start_period: 10s
@@ -19,27 +21,24 @@ services:
       timeout: 5s
       retries: 5
 
-  app:
-    build: .
-    container_name: annas_app
+  phpmyadmin:
+    image: phpmyadmin:latest
+    container_name: annas_phpmyadmin
     restart: unless-stopped
-    ports:
-      - "3000:3000"
     environment:
-      DATABASE_URL: mysql://annas_user:annas_password@mariadb:3306/annas_rechnungen
-      AUTH_SECRET: ${AUTH_SECRET}
-      NODE_ENV: production
+      PMA_HOST: mariadb
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: rootpassword
+      UPLOAD_LIMIT: 100M
+    ports:
+      - "8080:80"
     depends_on:
       mariadb:
         condition: service_healthy
     networks:
-      - app_network
-    command: >
-      sh -c "npx prisma migrate deploy && npm run start"
-
-volumes:
-  mariadb_data:
+      - db_network
 
 networks:
-  app_network:
+  db_network:
     driver: bridge

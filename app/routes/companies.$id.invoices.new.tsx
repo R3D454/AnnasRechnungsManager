@@ -74,7 +74,7 @@ export default function NewInvoicePage() {
           <CardTitle>Rechnungsdaten</CardTitle>
         </CardHeader>
         <CardContent>
-          <InvoiceForm customers={customers} companyId={company.id} onSubmit={handleSubmit} />
+          <InvoiceForm customers={customers} companyId={company.id} defaultKleinunternehmer={company.kleinunternehmer} onSubmit={handleSubmit} />
         </CardContent>
       </Card>
     </div>
