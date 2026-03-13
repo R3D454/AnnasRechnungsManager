@@ -30,9 +30,9 @@ services:
       DATABASE_URL: mysql://annas_user:annas_password@mariadb:3306/annas_rechnungen
       AUTH_SECRET: ${AUTH_SECRET}
       NODE_ENV: production
-      # Beim ersten Start: Admin-Benutzer (username: admin) anlegen oder Passwort setzen.
-      # Danach kann diese Variable entfernt werden.
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      # Beim ersten Start wird der Admin-Benutzer (username: admin) mit diesem Passwort angelegt.
+      # Nach dem ersten Login in der App ändern und hier leer lassen oder entfernen.
+      ADMIN_PASSWORD: changeme123
     depends_on:
       mariadb:
         condition: service_healthy
