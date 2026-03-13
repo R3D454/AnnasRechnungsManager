@@ -20,6 +20,7 @@ services:
       retries: 5
 
   app:
+  # registry.henryathome.home64.de/henry/annasrechnungsmanager:latest
     image: annasrechnungsmanager:latest
     container_name: annas_app
     restart: unless-stopped
@@ -31,21 +32,12 @@ services:
       NODE_ENV: production
       # Beim ersten Start: Admin-Benutzer (username: admin) anlegen oder Passwort setzen.
       # Danach kann diese Variable entfernt werden.
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD:admin}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
     depends_on:
       mariadb:
         condition: service_healthy
     networks:
       - app_network
-    command: >
-      sh -c "
-        npx prisma migrate deploy &&
-        if [ -n \"$ADMIN_PASSWORD\" ]; then
-          echo 'ADMIN_PASSWORD gesetzt – Admin-Benutzer wird eingerichtet...' &&
-          node scripts/setup-admin.js;
-        fi &&
-        npm run start
-      "
 
 volumes:
   mariadb_data:
