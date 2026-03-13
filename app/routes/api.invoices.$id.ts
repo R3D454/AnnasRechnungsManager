@@ -30,6 +30,14 @@ export async function action({ request, params }: { request: Request; params: { 
   if (!invoice) return Response.json({ error: "Not found" }, { status: 404 });
 
   if (request.method === "DELETE") {
+    const isAdmin = user.role === "ADMIN";
+    const deletableStatuses: InvoiceStatus[] = [InvoiceStatus.DRAFT, InvoiceStatus.CANCELLED];
+    if (!isAdmin && !deletableStatuses.includes(invoice.status)) {
+      return Response.json(
+        { error: "Nur Entwürfe und stornierte Rechnungen können gelöscht werden." },
+        { status: 403 }
+      );
+    }
     await prisma.invoice.delete({ where: { id: params.id } });
     return Response.json({ ok: true });
   }

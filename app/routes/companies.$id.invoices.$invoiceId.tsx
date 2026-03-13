@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "@/components/invoice/invoice-status-badge";
 import { formatCurrency, formatDate } from "@/lib/tax";
-import { ChevronLeft, Download, CheckCircle, Send, Trash2 } from "lucide-react";
+import { ChevronLeft, Download, CheckCircle, Send, Trash2, RotateCcw } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
 
 export async function loader({
@@ -40,6 +40,7 @@ export async function loader({
   if (!invoice) throw new Response("Not Found", { status: 404 });
 
   return {
+    isAdmin: user.role === "ADMIN",
     invoice: {
       ...invoice,
       netTotal: Number(invoice.netTotal),
@@ -63,7 +64,7 @@ export async function loader({
 }
 
 export default function InvoiceDetailPage() {
-  const { invoice } = useLoaderData<typeof loader>();
+  const { invoice, isAdmin } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
   const { revalidate } = useRevalidator();
   const [loading, setLoading] = useState(false);
@@ -91,8 +92,31 @@ export default function InvoiceDetailPage() {
     revalidate();
   }
 
-  async function handleDelete() {
-    if (!confirm("Rechnung wirklich löschen?")) return;
+  async function handleSoftDelete() {
+    if (!confirm("Rechnung in den Papierkorb verschieben?")) return;
+    setLoading(true);
+    await fetch(`/api/invoices/${invoice.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "DELETED" }),
+    });
+    setLoading(false);
+    revalidate();
+  }
+
+  async function handleRestore() {
+    setLoading(true);
+    await fetch(`/api/invoices/${invoice.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status: "CANCELLED" }),
+    });
+    setLoading(false);
+    revalidate();
+  }
+
+  async function handleHardDelete() {
+    if (!confirm("Rechnung endgültig löschen? Dies kann nicht rückgängig gemacht werden.")) return;
     await fetch(`/api/invoices/${invoice.id}`, { method: "DELETE" });
     navigate(`/companies/${id}/invoices`);
   }
@@ -131,9 +155,11 @@ export default function InvoiceDetailPage() {
 
         {/* Invoice Actions */}
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={downloadPdf}>
-            <Download className="h-4 w-4" /> PDF
-          </Button>
+          {invoice.status !== "DELETED" && (
+            <Button variant="outline" size="sm" onClick={downloadPdf}>
+              <Download className="h-4 w-4" /> PDF
+            </Button>
+          )}
           {invoice.status === "DRAFT" && (
             <Button size="sm" onClick={() => updateStatus(InvoiceStatus.SENT)} disabled={loading}>
               <Send className="h-4 w-4" /> Als versendet markieren
@@ -149,15 +175,45 @@ export default function InvoiceDetailPage() {
               <CheckCircle className="h-4 w-4" /> Als bezahlt markieren
             </Button>
           )}
-          {(invoice.status === "DRAFT" || invoice.status === "CANCELLED") && (
+          {/* Soft-Delete für alle nicht-gelöschten Status */}
+          {invoice.status !== "DELETED" && (
             <Button
               variant="outline"
               size="sm"
               className="text-red-600 hover:text-red-700 hover:bg-red-50"
-              onClick={handleDelete}
+              onClick={handleSoftDelete}
+              disabled={loading}
+              title="In Papierkorb verschieben"
             >
               <Trash2 className="h-4 w-4" />
             </Button>
+          )}
+          {/* Gelöschte Rechnung: Wiederherstellen + endgültig löschen (Admin) */}
+          {invoice.status === "DELETED" && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                className="text-slate-600 hover:text-slate-800"
+                onClick={handleRestore}
+                disabled={loading}
+                title="Als Storniert wiederherstellen"
+              >
+                <RotateCcw className="h-4 w-4" /> Wiederherstellen
+              </Button>
+              {isAdmin && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  onClick={handleHardDelete}
+                  disabled={loading}
+                  title="Endgültig löschen"
+                >
+                  <Trash2 className="h-4 w-4" /> Endgültig löschen
+                </Button>
+              )}
+            </>
           )}
         </div>
       </div>

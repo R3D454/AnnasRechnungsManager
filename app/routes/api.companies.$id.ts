@@ -43,6 +43,19 @@ export async function action({ request, params }: { request: Request; params: { 
     return Response.json({ ok: true });
   }
 
+  if (request.method === "PATCH") {
+    const body = await request.json();
+    const archive = body.archived === true;
+    await prisma.company.update({
+      where: { id: params.id },
+      data: {
+        archived: archive,
+        archivedAt: archive ? new Date() : null,
+      },
+    });
+    return Response.json({ ok: true });
+  }
+
   // PUT
   const body = await request.json();
   const parsed = companySchema.safeParse(body);

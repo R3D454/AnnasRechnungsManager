@@ -62,6 +62,23 @@ type Pages = {
       "id": string;
     };
   };
+  "/archiv": {
+    params: {};
+  };
+  "/admin/users": {
+    params: {};
+  };
+  "/admin/users/new": {
+    params: {};
+  };
+  "/admin/users/:id": {
+    params: {
+      "id": string;
+    };
+  };
+  "/admin/logs": {
+    params: {};
+  };
   "/api/companies": {
     params: {};
   };
@@ -109,7 +126,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/reports" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/customers" | "/api/customers/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/reports";
+    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/reports" | "/archiv" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/customers" | "/api/customers/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/reports";
   };
   "routes/login.tsx": {
     id: "routes/login";
@@ -121,7 +138,7 @@ type RouteFiles = {
   };
   "routes/dashboard-layout.tsx": {
     id: "routes/dashboard-layout";
-    page: "/" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/reports";
+    page: "/" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/reports" | "/archiv";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -162,6 +179,30 @@ type RouteFiles = {
   "routes/companies.$id.reports.tsx": {
     id: "routes/companies.$id.reports";
     page: "/companies/:id/reports";
+  };
+  "routes/archiv.tsx": {
+    id: "routes/archiv";
+    page: "/archiv";
+  };
+  "routes/admin-layout.tsx": {
+    id: "routes/admin-layout";
+    page: "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs";
+  };
+  "routes/admin.users.tsx": {
+    id: "routes/admin.users";
+    page: "/admin/users";
+  };
+  "routes/admin.users.new.tsx": {
+    id: "routes/admin.users.new";
+    page: "/admin/users/new";
+  };
+  "routes/admin.users.$id.tsx": {
+    id: "routes/admin.users.$id";
+    page: "/admin/users/:id";
+  };
+  "routes/admin.logs.tsx": {
+    id: "routes/admin.logs";
+    page: "/admin/logs";
   };
   "routes/api.companies.ts": {
     id: "routes/api.companies";
@@ -220,6 +261,12 @@ type RouteModules = {
   "routes/companies.$id.invoices.new": typeof import("./app/routes/companies.$id.invoices.new.tsx");
   "routes/companies.$id.invoices.$invoiceId": typeof import("./app/routes/companies.$id.invoices.$invoiceId.tsx");
   "routes/companies.$id.reports": typeof import("./app/routes/companies.$id.reports.tsx");
+  "routes/archiv": typeof import("./app/routes/archiv.tsx");
+  "routes/admin-layout": typeof import("./app/routes/admin-layout.tsx");
+  "routes/admin.users": typeof import("./app/routes/admin.users.tsx");
+  "routes/admin.users.new": typeof import("./app/routes/admin.users.new.tsx");
+  "routes/admin.users.$id": typeof import("./app/routes/admin.users.$id.tsx");
+  "routes/admin.logs": typeof import("./app/routes/admin.logs.tsx");
   "routes/api.companies": typeof import("./app/routes/api.companies.ts");
   "routes/api.companies.$id": typeof import("./app/routes/api.companies.$id.ts");
   "routes/api.companies.$id.customers": typeof import("./app/routes/api.companies.$id.customers.ts");

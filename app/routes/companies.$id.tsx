@@ -1,4 +1,4 @@
-import { Link, useLoaderData } from "react-router";
+import { Link, useLoaderData, useRevalidator } from "react-router";
 import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,10 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/tax";
 import {
   FileText, Users, BarChart3, Plus, Edit, Building2,
-  Mail, Phone, CreditCard, Receipt
+  Mail, Phone, CreditCard, Receipt, Archive, ArchiveRestore, AlertTriangle
 } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
+import { useState } from "react";
 
 export const handle = {
   breadcrumbs: (data: { company: { id: string; name: string } }) => [
@@ -23,13 +24,15 @@ const statusLabels: Record<InvoiceStatus, string> = {
   SENT: "Versendet",
   PAID: "Bezahlt",
   CANCELLED: "Storniert",
+  DELETED: "Gelöscht",
 };
 
-const statusVariants: Record<InvoiceStatus, "secondary" | "default" | "success" | "destructive" | "warning"> = {
+const statusVariants: Record<InvoiceStatus, "secondary" | "default" | "success" | "destructive" | "warning" | "outline"> = {
   DRAFT: "secondary",
   SENT: "warning",
   PAID: "success",
   CANCELLED: "destructive",
+  DELETED: "outline",
 };
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
@@ -56,8 +59,10 @@ export async function loader({ request, params }: { request: Request; params: { 
   });
 
   return {
+    isAdmin: user.role === "ADMIN",
     company: {
       ...company,
+      archivedAt: company.archivedAt?.toISOString() ?? null,
       invoices: company.invoices.map((inv) => ({
         ...inv,
         grossTotal: Number(inv.grossTotal),
@@ -70,30 +75,81 @@ export async function loader({ request, params }: { request: Request; params: { 
 }
 
 export default function CompanyPage() {
-  const { company, revenue } = useLoaderData<typeof loader>();
+  const { company, revenue, isAdmin } = useLoaderData<typeof loader>();
+  const { revalidate } = useRevalidator();
+  const [archiving, setArchiving] = useState(false);
   const id = company.id;
+
+  async function toggleArchive() {
+    const action = company.archived ? "Archivierung aufheben?" : "Mandanten archivieren?";
+    if (!confirm(action)) return;
+    setArchiving(true);
+    await fetch(`/api/companies/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ archived: !company.archived }),
+    });
+    setArchiving(false);
+    revalidate();
+  }
 
   return (
     <div>
+      {/* Archiv-Banner */}
+      {company.archived && (
+        <div className="flex items-center gap-3 mb-6 px-4 py-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-800 text-sm">
+          <AlertTriangle className="h-4 w-4 shrink-0 text-amber-500" />
+          <span>
+            Dieser Mandant ist archiviert
+            {company.archivedAt && ` seit ${new Date(company.archivedAt).toLocaleDateString("de-DE")}`}.
+          </span>
+          {isAdmin && (
+            <button
+              onClick={toggleArchive}
+              disabled={archiving}
+              className="ml-auto text-amber-700 underline hover:text-amber-900 text-xs"
+            >
+              Archivierung aufheben
+            </button>
+          )}
+        </div>
+      )}
+
       <div className="flex items-start justify-between mb-8">
         <div className="flex items-start gap-4">
-          <div className="p-3 rounded-xl bg-indigo-50">
-            <Building2 className="h-6 w-6 text-indigo-600" />
+          <div className={`p-3 rounded-xl ${company.archived ? "bg-slate-100" : "bg-indigo-50"}`}>
+            <Building2 className={`h-6 w-6 ${company.archived ? "text-slate-400" : "text-indigo-600"}`} />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-gray-900">{company.name}</h1>
+            <h1 className={`text-2xl font-bold ${company.archived ? "text-slate-500" : "text-gray-900"}`}>
+              {company.name}
+            </h1>
             <p className="text-gray-500 mt-0.5">
               {company.legalForm && `${company.legalForm} · `}
               {company.zip} {company.city}
             </p>
           </div>
         </div>
-        <Button variant="outline" asChild>
-          <Link to={`/companies/${id}/edit`}>
-            <Edit className="h-4 w-4" />
-            Bearbeiten
-          </Link>
-        </Button>
+        <div className="flex items-center gap-2">
+          {isAdmin && !company.archived && (
+            <Button variant="outline" onClick={toggleArchive} disabled={archiving}>
+              <Archive className="h-4 w-4" />
+              Archivieren
+            </Button>
+          )}
+          {isAdmin && company.archived && (
+            <Button variant="outline" onClick={toggleArchive} disabled={archiving}>
+              <ArchiveRestore className="h-4 w-4" />
+              Wiederherstellen
+            </Button>
+          )}
+          <Button variant="outline" asChild>
+            <Link to={`/companies/${id}/edit`}>
+              <Edit className="h-4 w-4" />
+              Bearbeiten
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">

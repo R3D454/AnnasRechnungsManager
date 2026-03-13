@@ -16,21 +16,21 @@ export async function loader({ request }: { request: Request }) {
 
   const [companies, invoiceStats, paidTotal, openInvoices] = await Promise.all([
     prisma.company.findMany({
-      where: { userId },
+      where: { userId, archived: false },
       include: { _count: { select: { invoices: true, customers: true } } },
       orderBy: { name: "asc" },
     }),
     prisma.invoice.aggregate({
-      where: { company: { userId } },
+      where: { company: { userId, archived: false } },
       _count: true,
       _sum: { grossTotal: true },
     }),
     prisma.invoice.aggregate({
-      where: { company: { userId }, status: InvoiceStatus.PAID },
+      where: { company: { userId, archived: false }, status: InvoiceStatus.PAID },
       _sum: { grossTotal: true },
     }),
     prisma.invoice.count({
-      where: { company: { userId }, status: { in: [InvoiceStatus.SENT, InvoiceStatus.DRAFT] } },
+      where: { company: { userId, archived: false }, status: { in: [InvoiceStatus.SENT, InvoiceStatus.DRAFT] } },
     }),
   ]);
 

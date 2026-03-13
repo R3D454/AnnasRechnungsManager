@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/tax";
 import {
   Building2, Plus, FileText, Users, X, Edit, Receipt,
-  Mail, Phone, CreditCard, ChevronRight,
+  Mail, Phone, CreditCard, ChevronRight, ChevronDown, Archive,
 } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
 
@@ -20,16 +20,18 @@ const statusLabels: Record<InvoiceStatus, string> = {
   SENT: "Versendet",
   PAID: "Bezahlt",
   CANCELLED: "Storniert",
+  DELETED: "Gelöscht",
 };
 
 const statusVariants: Record<
   InvoiceStatus,
-  "secondary" | "default" | "success" | "destructive" | "warning"
+  "secondary" | "default" | "success" | "destructive" | "warning" | "outline"
 > = {
   DRAFT: "secondary",
   SENT: "warning",
   PAID: "success",
   CANCELLED: "destructive",
+  DELETED: "outline",
 };
 
 export async function loader({ request }: { request: Request }) {
@@ -58,10 +60,68 @@ export async function loader({ request }: { request: Request }) {
   };
 }
 
+type Company = ReturnType<typeof useLoaderData<typeof loader>>["companies"][number];
+
+function CompanyCard({
+  company,
+  isActive,
+  onSelect,
+}: {
+  company: Company;
+  isActive: boolean;
+  onSelect: () => void;
+}) {
+  const archived = company.archived;
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      className={`text-left rounded-2xl border shadow-sm p-5 transition-all duration-200 cursor-pointer w-full ${
+        archived
+          ? "bg-slate-50 border-slate-200 opacity-70 hover:opacity-100"
+          : isActive
+            ? "bg-white border-indigo-400 ring-2 ring-indigo-100"
+            : "bg-white border-slate-200 hover:border-indigo-200 hover:shadow-md"
+      }`}
+    >
+      <div className="flex items-start gap-3 mb-4">
+        <div className={`flex items-center justify-center w-10 h-10 rounded-xl shrink-0 ${archived ? "bg-slate-100" : "bg-indigo-50"}`}>
+          {archived
+            ? <Archive className="h-5 w-5 text-slate-400" />
+            : <Building2 className="h-5 w-5 text-indigo-600" />}
+        </div>
+        <div className="min-w-0">
+          <p className={`font-semibold text-sm truncate ${archived ? "text-slate-500" : "text-slate-900"}`}>{company.name}</p>
+          {company.legalForm && (
+            <p className="text-xs text-slate-400 mt-0.5">{company.legalForm}</p>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-4 text-xs text-slate-500">
+        <span className="flex items-center gap-1.5">
+          <FileText className="h-3.5 w-3.5" />
+          {company._count.invoices} Rechnungen
+        </span>
+        <span className="flex items-center gap-1.5">
+          <Users className="h-3.5 w-3.5" />
+          {company._count.customers} Kunden
+        </span>
+      </div>
+      {company.city && (
+        <p className="text-xs text-slate-400 mt-2">{company.zip} {company.city}</p>
+      )}
+    </button>
+  );
+}
+
 export default function CompaniesPage() {
   const { companies } = useLoaderData<typeof loader>();
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [archivedOpen, setArchivedOpen] = useState(false);
   const selected = companies.find((c) => c.id === selectedId) ?? null;
+
+  const active = companies.filter((c) => !c.archived);
+  const archived = companies.filter((c) => c.archived);
 
   return (
     <div className="animate-fade-in flex gap-6">
@@ -70,7 +130,10 @@ export default function CompaniesPage() {
         <div className="flex items-center justify-between mb-8">
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Mandanten</h1>
-            <p className="text-slate-500 mt-1 text-sm">{companies.length} Mandanten verwaltet</p>
+            <p className="text-slate-500 mt-1 text-sm">
+              {active.length} aktive Mandanten
+              {archived.length > 0 && <span className="text-slate-400"> · {archived.length} archiviert</span>}
+            </p>
           </div>
           <Button asChild>
             <Link to="/companies/new">
@@ -80,7 +143,7 @@ export default function CompaniesPage() {
           </Button>
         </div>
 
-        {companies.length === 0 ? (
+        {active.length === 0 && archived.length === 0 ? (
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm py-16 text-center">
             <div className="flex items-center justify-center w-14 h-14 rounded-2xl bg-slate-100 mx-auto mb-4">
               <Building2 className="h-7 w-7 text-slate-400" />
@@ -95,47 +158,46 @@ export default function CompaniesPage() {
             </Button>
           </div>
         ) : (
-          <div className={`grid gap-4 ${selected ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"}`}>
-            {companies.map((company) => {
-              const isActive = selectedId === company.id;
-              return (
+          <div className="space-y-6">
+            {/* Aktive Mandanten */}
+            {active.length > 0 && (
+              <div className={`grid gap-4 ${selected ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"}`}>
+                {active.map((company) => (
+                  <CompanyCard
+                    key={company.id}
+                    company={company}
+                    isActive={selectedId === company.id}
+                    onSelect={() => setSelectedId(selectedId === company.id ? null : company.id)}
+                  />
+                ))}
+              </div>
+            )}
+
+            {/* Archivierte Mandanten */}
+            {archived.length > 0 && (
+              <div>
                 <button
-                  key={company.id}
-                  type="button"
-                  onClick={() => setSelectedId(isActive ? null : company.id)}
-                  className={`text-left bg-white rounded-2xl border shadow-sm p-5 hover:shadow-md transition-all duration-200 cursor-pointer w-full ${
-                    isActive
-                      ? "border-indigo-400 ring-2 ring-indigo-100"
-                      : "border-slate-200 hover:border-indigo-200"
-                  }`}
+                  onClick={() => setArchivedOpen((v) => !v)}
+                  className="flex items-center gap-2 text-sm text-slate-500 hover:text-slate-700 mb-3 transition-colors"
                 >
-                  <div className="flex items-start gap-3 mb-4">
-                    <div className="flex items-center justify-center w-10 h-10 rounded-xl bg-indigo-50 shrink-0">
-                      <Building2 className="h-5 w-5 text-indigo-600" />
-                    </div>
-                    <div className="min-w-0">
-                      <p className="font-semibold text-slate-900 text-sm truncate">{company.name}</p>
-                      {company.legalForm && (
-                        <p className="text-xs text-slate-400 mt-0.5">{company.legalForm}</p>
-                      )}
-                    </div>
-                  </div>
-                  <div className="flex gap-4 text-xs text-slate-500">
-                    <span className="flex items-center gap-1.5">
-                      <FileText className="h-3.5 w-3.5" />
-                      {company._count.invoices} Rechnungen
-                    </span>
-                    <span className="flex items-center gap-1.5">
-                      <Users className="h-3.5 w-3.5" />
-                      {company._count.customers} Kunden
-                    </span>
-                  </div>
-                  {company.city && (
-                    <p className="text-xs text-slate-400 mt-2">{company.zip} {company.city}</p>
-                  )}
+                  {archivedOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+                  <Archive className="h-3.5 w-3.5" />
+                  Archivierte Mandanten ({archived.length})
                 </button>
-              );
-            })}
+                {archivedOpen && (
+                  <div className={`grid gap-4 ${selected ? "grid-cols-1 lg:grid-cols-2" : "grid-cols-1 md:grid-cols-2 xl:grid-cols-3"}`}>
+                    {archived.map((company) => (
+                      <CompanyCard
+                        key={company.id}
+                        company={company}
+                        isActive={selectedId === company.id}
+                        onSelect={() => setSelectedId(selectedId === company.id ? null : company.id)}
+                      />
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
       </div>

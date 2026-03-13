@@ -13,13 +13,13 @@ export async function loader({ request }: { request: Request }) {
 
 export async function action({ request }: { request: Request }) {
   const formData = await request.formData();
-  const email = formData.get("email") as string;
+  const identifier = formData.get("identifier") as string;
   const password = formData.get("password") as string;
 
-  const user = await login(email, password);
-  if (!user) return { error: "E-Mail oder Passwort falsch." };
+  const user = await login(identifier, password, request);
+  if (!user) return { error: "Benutzername/E-Mail oder Passwort falsch." };
 
-  return createUserSession(user.id, user.name, "/");
+  return createUserSession(user.id, user.name, user.role, "/");
 }
 
 export default function LoginPage() {
@@ -83,7 +83,7 @@ export default function LoginPage() {
 
           <div className="mb-8">
             <h1 className="text-2xl font-bold text-slate-900">Willkommen zurück</h1>
-            <p className="text-slate-500 mt-1 text-sm">Melden Sie sich mit Ihren Zugangsdaten an</p>
+            <p className="text-slate-500 mt-1 text-sm">Benutzername oder E-Mail und Passwort eingeben</p>
           </div>
 
           <div className="bg-white rounded-2xl border border-slate-200 shadow-sm p-8">
@@ -96,14 +96,14 @@ export default function LoginPage() {
               )}
 
               <div className="space-y-1.5">
-                <Label htmlFor="email">E-Mail</Label>
+                <Label htmlFor="identifier">Benutzername oder E-Mail</Label>
                 <Input
-                  id="email"
-                  name="email"
-                  type="email"
-                  placeholder="anna@example.de"
+                  id="identifier"
+                  name="identifier"
+                  type="text"
+                  placeholder="anna oder anna@example.de"
                   required
-                  autoComplete="email"
+                  autoComplete="username"
                 />
               </div>
 

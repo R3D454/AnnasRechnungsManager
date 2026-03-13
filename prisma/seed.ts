@@ -13,11 +13,13 @@ async function main() {
     update: {},
     create: {
       email: "anna@example.de",
+      username: "anna",
       passwordHash,
       name: "Anna Musterfrau",
+      role: "ADMIN",
     },
   });
-  console.log(`✓ User created: ${user.email}`);
+  console.log(`✓ User created: ${user.email} (username: ${user.username}, role: ${user.role})`);
 
   // Create demo company
   const company = await prisma.company.upsert({
@@ -93,6 +95,40 @@ async function main() {
     },
   });
   console.log(`✓ Invoice created: ${invoice.number}`);
+
+  const invoice2 = await prisma.invoice.upsert({
+    where: { id: "demo-invoice-2" },
+    update: {},
+    create: {
+      id: "demo-invoice-2",
+      number: "RE-2024-002",
+      companyId: company.id,
+      customerId: customer.id,
+      issueDate: new Date("2026-02-15"),
+      deliveryDate: new Date("2026-02-15"),
+      dueDate: new Date("2026-03-14"),
+      status: "PAID",
+      netTotal: 2000.0,
+      taxTotal: 380.0,
+      grossTotal: 2380.0,
+      items: {
+        create: [
+          {
+            position: 1,
+            description: "Buchhaltungsleistungen Februar 2024",
+            quantity: 10,
+            unit: "h",
+            unitPrice: 200.0,
+            taxRate: 19.0,
+            netAmount: 2000.0,
+            taxAmount: 380.0,
+            grossAmount: 2380.0,
+          },
+        ],
+      },
+    },
+  });
+  console.log(`✓ Invoice created: ${invoice2.number}`);
 
   // Update company sequence
   await prisma.company.update({

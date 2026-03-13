@@ -1,0 +1,2 @@
+-- Extend InvoiceStatus enum with ARCHIVED
+ALTER TABLE `invoices` MODIFY COLUMN `status` ENUM('DRAFT', 'SENT', 'PAID', 'CANCELLED', 'ARCHIVED') NOT NULL DEFAULT 'DRAFT';

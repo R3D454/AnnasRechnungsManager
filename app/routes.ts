@@ -15,6 +15,15 @@ export default [
     route("companies/:id/invoices/new", "routes/companies.$id.invoices.new.tsx"),
     route("companies/:id/invoices/:invoiceId", "routes/companies.$id.invoices.$invoiceId.tsx"),
     route("companies/:id/reports", "routes/companies.$id.reports.tsx"),
+    route("archiv", "routes/archiv.tsx"),
+  ]),
+
+  // Admin routes
+  layout("routes/admin-layout.tsx", [
+    route("admin/users", "routes/admin.users.tsx"),
+    route("admin/users/new", "routes/admin.users.new.tsx"),
+    route("admin/users/:id", "routes/admin.users.$id.tsx"),
+    route("admin/logs", "routes/admin.logs.tsx"),
   ]),
 
   // API resource routes
