@@ -1,7 +1,7 @@
 services:
   mariadb:
     image: mariadb:11
-    container_name: annas_mariadb
+    container_name: annas_mariadb_dev
     restart: unless-stopped
     environment:
       MYSQL_ROOT_PASSWORD: rootpassword

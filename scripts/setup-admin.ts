@@ -12,7 +12,7 @@
  *
  * Manual usage:
  *   ADMIN_PASSWORD=secret npx ts-node --compiler-options '{"module":"CommonJS"}' scripts/setup-admin.ts
- *   docker exec -e ADMIN_PASSWORD=secret annas_app node scripts/setup-admin.js
+ *   docker exec -e ADMIN_PASSWORD=secret annas_app node scripts/setup-admin.cjs
  */
 
 import { PrismaClient } from "@prisma/client";

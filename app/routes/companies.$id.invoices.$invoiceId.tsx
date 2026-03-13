@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "@/components/invoice/invoice-status-badge";
 import { formatCurrency, formatDate } from "@/lib/tax";
 import { ChevronLeft, Download, CheckCircle, Send, Trash2, RotateCcw } from "lucide-react";
-import { InvoiceStatus } from "@prisma/client";
+import type { InvoiceStatus } from "@prisma/client";
 
 export async function loader({
   request,
@@ -161,7 +161,7 @@ export default function InvoiceDetailPage() {
             </Button>
           )}
           {invoice.status === "DRAFT" && (
-            <Button size="sm" onClick={() => updateStatus(InvoiceStatus.SENT)} disabled={loading}>
+            <Button size="sm" onClick={() => updateStatus("SENT")} disabled={loading}>
               <Send className="h-4 w-4" /> Als versendet markieren
             </Button>
           )}
@@ -169,7 +169,7 @@ export default function InvoiceDetailPage() {
             <Button
               size="sm"
               className="bg-green-600 hover:bg-green-700"
-              onClick={() => updateStatus(InvoiceStatus.PAID)}
+              onClick={() => updateStatus("PAID")}
               disabled={loading}
             >
               <CheckCircle className="h-4 w-4" /> Als bezahlt markieren

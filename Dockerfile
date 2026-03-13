@@ -14,7 +14,9 @@ RUN npx prisma generate
 COPY . .
 RUN npm run build
 # Compile recovery scripts to plain JS for use inside the container
-RUN npx tsc --module commonjs --target es2020 --moduleResolution node --esModuleInterop true --outDir scripts-dist scripts/setup-admin.ts scripts/reset-password.ts
+RUN npx tsc --module commonjs --target es2020 --moduleResolution node --esModuleInterop true --outDir scripts-dist scripts/setup-admin.ts scripts/reset-password.ts && \
+    mv scripts-dist/setup-admin.js scripts-dist/setup-admin.cjs && \
+    mv scripts-dist/reset-password.js scripts-dist/reset-password.cjs
 
 # ---- Production Stage ----
 FROM node:alpine AS runner

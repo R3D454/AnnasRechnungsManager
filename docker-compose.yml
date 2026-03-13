@@ -28,7 +28,7 @@ services:
       - "3000:3000"
     environment:
       DATABASE_URL: mysql://annas_user:annas_password@mariadb:3306/annas_rechnungen
-      AUTH_SECRET: ${AUTH_SECRET}
+      AUTH_SECRET: changeme123
       NODE_ENV: production
       # Beim ersten Start wird der Admin-Benutzer (username: admin) mit diesem Passwort angelegt.
       # Nach dem ersten Login in der App ändern und hier leer lassen oder entfernen.
