@@ -1,6 +1,6 @@
 import { getApiUser } from "@/session.server";
-import prisma from "@/lib/prisma";
-import { generateInvoiceNumber } from "@/lib/invoice-number";
+import prisma from "@/lib/prisma.server";
+import { generateInvoiceNumber } from "@/lib/invoice-number.server";
 import { z } from "zod";
 
 const itemSchema = z.object({

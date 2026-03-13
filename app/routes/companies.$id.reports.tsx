@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Link, useLoaderData } from "react-router";
 import { requireUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/tax";
 import { ChevronLeft, TrendingUp, BarChart3 } from "lucide-react";

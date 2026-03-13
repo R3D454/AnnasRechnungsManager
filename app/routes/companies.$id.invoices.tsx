@@ -8,7 +8,7 @@ export const handle = {
   ],
 };
 import { requireUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoice/invoice-status-badge";

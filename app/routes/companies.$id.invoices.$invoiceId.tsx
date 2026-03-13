@@ -9,7 +9,7 @@ export const handle = {
   ],
 };
 import { requireUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { useState } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

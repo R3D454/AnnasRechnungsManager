@@ -1,5 +1,5 @@
 import { getApiUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { z } from "zod";
 
 const customerSchema = z.object({

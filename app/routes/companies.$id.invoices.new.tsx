@@ -9,7 +9,7 @@ export const handle = {
   ],
 };
 import { requireUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InvoiceForm } from "@/components/invoice/invoice-form";
 import { ChevronLeft } from "lucide-react";

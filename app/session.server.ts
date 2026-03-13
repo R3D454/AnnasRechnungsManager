@@ -1,7 +1,7 @@
 import { createCookieSessionStorage, redirect } from "react-router";
 import bcrypt from "bcryptjs";
-import prisma from "@/lib/prisma";
-import { log } from "@/lib/logger";
+import prisma from "@/lib/prisma.server";
+import { log } from "@/lib/logger.server";
 
 const sessionStorage = createCookieSessionStorage({
   cookie: {
@@ -11,7 +11,7 @@ const sessionStorage = createCookieSessionStorage({
     path: "/",
     sameSite: "lax",
     secrets: [process.env.AUTH_SECRET ?? "fallback-secret-change-in-production"],
-    secure: process.env.NODE_ENV === "production",
+    secure: process.env.SESSION_SECURE === "true",
   },
 });
 

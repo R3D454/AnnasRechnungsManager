@@ -1,6 +1,6 @@
 import { Link, useLoaderData } from "react-router";
 import { requireUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { formatCurrency } from "@/lib/tax";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Building2, FileText, Euro, TrendingUp } from "lucide-react";

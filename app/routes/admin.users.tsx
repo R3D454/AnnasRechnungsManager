@@ -1,6 +1,6 @@
 import { Link, useLoaderData } from "react-router";
 import { requireAdmin } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { UserPlus, Shield, User } from "lucide-react";
 
 export async function loader({ request }: { request: Request }) {

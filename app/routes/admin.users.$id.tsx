@@ -7,8 +7,8 @@ import {
   Link,
 } from "react-router";
 import { requireAdmin } from "@/session.server";
-import { log } from "@/lib/logger";
-import prisma from "@/lib/prisma";
+import { log } from "@/lib/logger.server";
+import prisma from "@/lib/prisma.server";
 import bcrypt from "bcryptjs";
 import { AlertCircle, ArrowLeft, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";

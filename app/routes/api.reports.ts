@@ -1,5 +1,5 @@
 import { getApiUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { InvoiceStatus } from "@prisma/client";
 
 export async function loader({ request }: { request: Request }) {

@@ -1,6 +1,6 @@
 import { Link, useLoaderData } from "react-router";
 import { requireUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { formatCurrency } from "@/lib/tax";
 import { Archive, Building2, FileText, Users, ArchiveRestore } from "lucide-react";
 import { useRevalidator } from "react-router";

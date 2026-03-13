@@ -1,8 +1,8 @@
 import { Form, useActionData, useNavigation } from "react-router";
 import { requireUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import bcrypt from "bcryptjs";
-import { log } from "@/lib/logger";
+import { log } from "@/lib/logger.server";
 import { Button } from "@/components/ui/button";
 import { KeyRound, CheckCircle2 } from "lucide-react";
 

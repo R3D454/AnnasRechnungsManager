@@ -1,7 +1,7 @@
 import { Link, useLoaderData } from "react-router";
 import { useState } from "react";
 import { requireUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/tax";

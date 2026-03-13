@@ -1,4 +1,4 @@
-import prisma from "./prisma";
+import prisma from "./prisma.server";
 
 export async function generateInvoiceNumber(companyId: string): Promise<string> {
   const year = new Date().getFullYear();

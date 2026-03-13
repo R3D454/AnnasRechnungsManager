@@ -1,5 +1,5 @@
 import { getApiUser } from "@/session.server";
-import prisma from "@/lib/prisma";
+import prisma from "@/lib/prisma.server";
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
   const user = await getApiUser(request);
