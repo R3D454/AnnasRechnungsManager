@@ -1,5 +1,5 @@
 # ---- Build Stage ----
-FROM node:22-alpine AS builder
+FROM node:alpine AS builder
 
 WORKDIR /app
 
@@ -15,11 +15,13 @@ COPY . .
 RUN npm run build
 
 # ---- Production Stage ----
-FROM node:22-alpine AS runner
+FROM node:alpine AS runner
 
 WORKDIR /app
 
 ENV NODE_ENV=production
+
+RUN apk add --no-cache openssl
 
 COPY package*.json ./
 RUN npm ci --omit=dev
