@@ -1,13 +1,17 @@
 # Annas Rechnungsmanager
 
-Buchhaltungs- und Rechnungsverwaltungssystem für Mandanten.
+Buchhaltungs- und Rechnungsverwaltungssystem für Steuerberater und Buchhalter mit Mandantenverwaltung.
 
 ## Features
 
-- **Mandantenverwaltung** — Mehrere Unternehmen verwalten
-- **Rechnungen** — Erstellen, verwalten, als PDF exportieren (§14 UStG konform)
+- **Mandantenverwaltung** — Mehrere Unternehmen verwalten, archivieren und wiederherstellen
+- **Rechnungen** — Erstellen, versenden, bezahlen, als PDF exportieren (§14 UStG konform)
 - **Kundenverwaltung** — Kundenstammdaten pro Mandant
 - **Steuerberichte** — USt-Voranmeldung, monatliche & quartalsweise Auswertungen
+- **Benutzerverwaltung** — Mehrere Benutzer mit Rollen (USER / ADMIN)
+- **Audit-Log** — Protokollierung aller relevanten Aktionen mit Benutzer und IP
+- **Archiv** — Archivierte Mandanten mit vollständiger Historie einsehbar
+- **Papierkorb** — Gelöschte Rechnungen wiederherstellbar
 
 ## Tech Stack
 
@@ -16,7 +20,9 @@ Buchhaltungs- und Rechnungsverwaltungssystem für Mandanten.
 - **Cookie-Session-Auth** (bcryptjs)
 - **Tailwind CSS v4** + shadcn/ui
 - **@react-pdf/renderer** für PDF-Generierung
-- **Docker** für die Datenbank
+- **Docker** für Datenbank und Deployment
+
+---
 
 ## Lokale Entwicklung
 
@@ -37,83 +43,161 @@ npm install
 
 ```env
 DATABASE_URL="mysql://annas_user:annas_password@localhost:3306/annas_rechnungen"
-AUTH_SECRET="dein-zufaelliger-secret-string"
+AUTH_SECRET="dein-zufaelliger-geheimer-string"
 ```
 
 ### Datenbank einrichten
 
 ```bash
-npm run db:migrate   # Migrationen ausführen
-npm run db:seed      # Demo-Daten einspielen
+npx prisma migrate deploy   # Migrationen ausführen
+npm run db:seed             # Demo-Daten einspielen (optional)
 ```
 
-**Demo-Zugangsdaten:** `anna@example.de` / `demo123`
-
-### Entwicklungsserver starten
+### Dev-Server starten
 
 ```bash
 npm run dev
 ```
 
-Startet automatisch MariaDB via Docker und den Vite-Dev-Server auf `http://localhost:5173`.
+Startet den Vite-Dev-Server auf `http://localhost:5173`.
 
-## Scripts
-
-| Befehl | Beschreibung |
-|---|---|
-| `npm run dev` | DB starten + Dev-Server |
-| `npm run build` | Produktions-Build |
-| `npm run start` | Produktions-Server starten |
-| `npm run typecheck` | TypeScript prüfen |
-| `npm run db:migrate` | Prisma Migrationen ausführen |
-| `npm run db:seed` | Demo-Daten einspielen |
-| `npm run db:studio` | Prisma Studio öffnen |
+---
 
 ## Deployment
 
-### Docker Compose
+### Erstes Deployment
 
-Startet App + MariaDB als komplettes Setup:
+**1. Image bauen:**
+
+```bash
+docker build -t annasrechnungsmanager:latest .
+```
+
+**2. Secrets setzen** (Shell-Exports oder `.env`-Datei):
+
+```bash
+export AUTH_SECRET="langer-zufaelliger-string"
+export ADMIN_PASSWORD="sicheres-startpasswort"   # nur beim ersten Start
+```
+
+**3. Stack starten:**
 
 ```bash
 docker compose up -d
 ```
 
-Die App läuft auf `http://localhost:3000`. Migrationen werden automatisch beim Start ausgeführt.
+Beim ersten Start mit gesetztem `ADMIN_PASSWORD`:
+- Prisma-Migrationen werden automatisch ausgeführt
+- Admin-Benutzer (`username: admin`) wird angelegt oder aktualisiert
 
-> `AUTH_SECRET` muss als Umgebungsvariable gesetzt sein.
+**4. `ADMIN_PASSWORD` entfernen** (nach erfolgreichem Login und eigenem Passwort setzen).
 
-### Kubernetes
+> Die App läuft auf `http://localhost:3000`.
+
+### Folge-Deployments
 
 ```bash
-# Secret-Werte in k8s.yml anpassen (auth-secret, ggf. Passwörter), dann:
-kubectl apply -f k8s.yml
+docker build -t annasrechnungsmanager:latest .
+docker compose up -d --no-deps app
 ```
 
-Das Manifest (`k8s.yml`) enthält: Namespace, Secret, MariaDB (PVC + Deployment + Service), App (Deployment mit Init-Container für Migrationen + Service + Ingress).
+Migrationen werden beim Start automatisch angewendet. `ADMIN_PASSWORD` ist nicht erneut nötig.
+
+---
+
+## Admin-Benutzer & Recovery
+
+### Admin-Passwort setzen (im laufenden Container)
+
+```bash
+docker exec -e ADMIN_PASSWORD=neuespasswort annas_app node scripts/setup-admin.js
+```
+
+Erstellt oder aktualisiert den Benutzer `admin` (idempotent). Mindestens 8 Zeichen.
+
+### Passwort eines beliebigen Benutzers zurücksetzen
+
+```bash
+docker exec -it annas_app node scripts/reset-password.js --username anna --password neuespasswort
+```
+
+Zeigt alle vorhandenen Benutzer an, wenn der angegebene Username nicht existiert.
+
+### Passwort im laufenden Betrieb ändern
+
+Jeder eingeloggte Benutzer kann sein Passwort über das **Schlüssel-Icon** in der Topbar ändern (`/settings/password`).
+
+---
+
+## Benutzerverwaltung (Admin)
+
+Erreichbar über den **Admin**-Button in der Topbar (nur für Benutzer mit Rolle `ADMIN`).
+
+- Benutzer anlegen, bearbeiten, löschen
+- Rollen vergeben: `USER` oder `ADMIN`
+- Audit-Log einsehen (Aktion, Benutzer, IP-Adresse, Zeitstempel)
+
+Login ist möglich mit **Benutzername** oder **E-Mail-Adresse**.
+
+---
+
+## Scripts
+
+| Befehl | Beschreibung |
+|---|---|
+| `npm run dev` | Dev-Server starten |
+| `npm run build` | Produktions-Build |
+| `npm run start` | Produktions-Server starten |
+| `npm run typecheck` | TypeScript prüfen |
+| `npm run db:migrate` | Prisma Migrationen ausführen (Dev) |
+| `npm run db:seed` | Demo-Daten einspielen |
+| `npm run db:studio` | Prisma Studio öffnen |
+| `npm run setup-admin` | Admin-Benutzer anlegen / Passwort setzen |
+| `npm run reset-password` | Passwort eines Benutzers zurücksetzen |
+
+**Beispiele (Entwicklung):**
+
+```bash
+# Admin-Passwort setzen
+ADMIN_PASSWORD=geheim npm run setup-admin
+
+# Passwort zurücksetzen
+npm run reset-password -- --username anna --password neuespasswort
+```
+
+---
 
 ## Projektstruktur
 
 ```
 app/
   components/         UI-Komponenten (ui/, layout/, company/, invoice/)
-  lib/                Hilfsfunktionen (prisma, tax, utils, invoice-number)
+  lib/                Hilfsfunktionen (prisma, tax, utils, invoice-number, logger)
   routes/             Route-Dateien (React Router v7, file-based)
-  session.server.ts   Auth (Login, Logout, Session)
+    admin.*           Admin-Bereich (Benutzerverwaltung, Audit-Log)
+    api.*             REST-API-Routen (resource routes)
+    settings.*        Benutzereinstellungen (Passwort ändern)
+    archiv.tsx        Archiv-Übersicht (archivierte Mandanten)
+  session.server.ts   Auth (Login via Username/E-Mail, Logout, Session)
   types/              Gemeinsame TypeScript-Typen
-db/
-  docker-compose.yml  MariaDB + phpMyAdmin für lokale Entwicklung
+scripts/
+  setup-admin.ts      Admin-Benutzer anlegen / Passwort setzen
+  reset-password.ts   Recovery: Passwort eines Benutzers zurücksetzen
 prisma/
   schema.prisma       Datenbankschema
   migrations/         Migrationsverlauf
+  seed.ts             Demo-Daten
 ```
+
+---
 
 ## Rechnungs-Compliance (§14 UStG)
 
 Alle PDFs enthalten die gesetzlich vorgeschriebenen Pflichtangaben:
+
 - Name & Anschrift Rechnungssteller und -empfänger
 - Steuernummer / USt-IdNr. des Ausstellers
-- Rechnungsdatum & Rechnungsnummer (fortlaufend)
+- Rechnungsdatum & fortlaufende Rechnungsnummer
 - Leistungsdatum / Lieferdatum
 - Leistungsbeschreibung
 - Nettobetrag, USt-Satz, USt-Betrag, Bruttobetrag

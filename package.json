@@ -12,7 +12,9 @@
     "lint": "eslint",
     "db:migrate": "prisma migrate dev",
     "db:seed": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "setup-admin": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/setup-admin.ts",
+    "reset-password": "npx ts-node --compiler-options '{\"module\":\"CommonJS\"}' scripts/reset-password.ts"
   },
   "prisma": {
     "seed": "npx ts-node --compiler-options {\"module\":\"CommonJS\"} prisma/seed.ts"

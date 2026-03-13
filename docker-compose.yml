@@ -29,13 +29,23 @@ services:
       DATABASE_URL: mysql://annas_user:annas_password@mariadb:3306/annas_rechnungen
       AUTH_SECRET: ${AUTH_SECRET}
       NODE_ENV: production
+      # Beim ersten Start: Admin-Benutzer (username: admin) anlegen oder Passwort setzen.
+      # Danach kann diese Variable entfernt werden.
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:admin}
     depends_on:
       mariadb:
         condition: service_healthy
     networks:
       - app_network
     command: >
-      sh -c "npx prisma migrate deploy && npm run start"
+      sh -c "
+        npx prisma migrate deploy &&
+        if [ -n \"$ADMIN_PASSWORD\" ]; then
+          echo 'ADMIN_PASSWORD gesetzt – Admin-Benutzer wird eingerichtet...' &&
+          node scripts/setup-admin.js;
+        fi &&
+        npm run start
+      "
 
 volumes:
   mariadb_data:

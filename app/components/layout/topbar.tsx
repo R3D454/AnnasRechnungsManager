@@ -1,5 +1,5 @@
 import { useMatches, useLocation, Link, Form } from "react-router";
-import { ChevronRight, LayoutDashboard, LogOut, Shield, Archive } from "lucide-react";
+import { ChevronRight, LayoutDashboard, LogOut, Shield, Archive, KeyRound } from "lucide-react";
 
 interface Breadcrumb {
   label: string;
@@ -174,6 +174,22 @@ export function Topbar({
             >
               {getInitials(userName)}
             </div>
+            <Link
+                to="/settings/password"
+                title="Passwort ändern"
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  color: "#94a3b8",
+                  padding: "0.25rem",
+                  textDecoration: "none",
+                }}
+              >
+                <KeyRound style={{ width: "1rem", height: "1rem" }} />
+              </Link>
             <Form method="post" action="/logout">
               <button
                 type="submit"

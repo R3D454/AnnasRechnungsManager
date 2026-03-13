@@ -16,6 +16,7 @@ export default [
     route("companies/:id/invoices/:invoiceId", "routes/companies.$id.invoices.$invoiceId.tsx"),
     route("companies/:id/reports", "routes/companies.$id.reports.tsx"),
     route("archiv", "routes/archiv.tsx"),
+    route("settings/password", "routes/settings.password.tsx"),
   ]),
 
   // Admin routes

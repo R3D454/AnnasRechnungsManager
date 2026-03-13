@@ -65,6 +65,9 @@ type Pages = {
   "/archiv": {
     params: {};
   };
+  "/settings/password": {
+    params: {};
+  };
   "/admin/users": {
     params: {};
   };
@@ -126,7 +129,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/reports" | "/archiv" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/customers" | "/api/customers/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/reports";
+    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/reports" | "/archiv" | "/settings/password" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/customers" | "/api/customers/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/reports";
   };
   "routes/login.tsx": {
     id: "routes/login";
@@ -138,7 +141,7 @@ type RouteFiles = {
   };
   "routes/dashboard-layout.tsx": {
     id: "routes/dashboard-layout";
-    page: "/" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/reports" | "/archiv";
+    page: "/" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/reports" | "/archiv" | "/settings/password";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -183,6 +186,10 @@ type RouteFiles = {
   "routes/archiv.tsx": {
     id: "routes/archiv";
     page: "/archiv";
+  };
+  "routes/settings.password.tsx": {
+    id: "routes/settings.password";
+    page: "/settings/password";
   };
   "routes/admin-layout.tsx": {
     id: "routes/admin-layout";
@@ -262,6 +269,7 @@ type RouteModules = {
   "routes/companies.$id.invoices.$invoiceId": typeof import("./app/routes/companies.$id.invoices.$invoiceId.tsx");
   "routes/companies.$id.reports": typeof import("./app/routes/companies.$id.reports.tsx");
   "routes/archiv": typeof import("./app/routes/archiv.tsx");
+  "routes/settings.password": typeof import("./app/routes/settings.password.tsx");
   "routes/admin-layout": typeof import("./app/routes/admin-layout.tsx");
   "routes/admin.users": typeof import("./app/routes/admin.users.tsx");
   "routes/admin.users.new": typeof import("./app/routes/admin.users.new.tsx");
