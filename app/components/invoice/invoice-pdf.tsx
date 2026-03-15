@@ -112,8 +112,7 @@ const styles = StyleSheet.create({
   col_pos: { width: "5%" },
   col_desc: { width: "40%" },
   col_qty: { width: "10%", textAlign: "right" },
-  col_unit: { width: "8%", textAlign: "center" },
-  col_price: { width: "14%", textAlign: "right" },
+  col_price: { width: "22%", textAlign: "right" },
   col_tax: { width: "8%", textAlign: "center" },
   col_total: { width: "15%", textAlign: "right" },
   totalsSection: {
@@ -324,7 +323,6 @@ export function InvoicePDFDocument({ invoice }: InvoicePDFProps) {
           <Text style={{ ...styles.tableHeaderText, ...styles.col_pos }}>#</Text>
           <Text style={{ ...styles.tableHeaderText, ...styles.col_desc }}>Beschreibung</Text>
           <Text style={{ ...styles.tableHeaderText, ...styles.col_qty }}>Menge</Text>
-          <Text style={{ ...styles.tableHeaderText, ...styles.col_unit }}>Einh.</Text>
           <Text style={{ ...styles.tableHeaderText, ...styles.col_price }}>
             {invoice.kleinunternehmer ? "EP (brutto)" : "EP (netto)"}
           </Text>
@@ -339,7 +337,6 @@ export function InvoicePDFDocument({ invoice }: InvoicePDFProps) {
             <Text style={{ ...styles.col_pos, fontSize: 9 }}>{item.position}</Text>
             <Text style={{ ...styles.col_desc, fontSize: 9 }}>{item.description}</Text>
             <Text style={{ ...styles.col_qty, fontSize: 9 }}>{n(item.quantity)}</Text>
-            <Text style={{ ...styles.col_unit, fontSize: 9 }}>{item.unit ?? ""}</Text>
             <Text style={{ ...styles.col_price, fontSize: 9 }}>{formatMoney(n(item.unitPrice))}</Text>
             {!invoice.kleinunternehmer && (
               <Text style={{ ...styles.col_tax, fontSize: 9 }}>{n(item.taxRate)}%</Text>

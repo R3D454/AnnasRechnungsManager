@@ -140,6 +140,11 @@ type Pages = {
       "id": string;
     };
   };
+  "/api/invoices/:id/xml": {
+    params: {
+      "id": string;
+    };
+  };
   "/api/reports": {
     params: {};
   };
@@ -148,7 +153,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/archiv" | "/settings/password" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/customers" | "/api/customers/:id" | "/api/services" | "/api/services/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/reports";
+    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/archiv" | "/settings/password" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/customers" | "/api/customers/:id" | "/api/services" | "/api/services/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/invoices/:id/xml" | "/api/reports";
   };
   "routes/login.tsx": {
     id: "routes/login";
@@ -282,6 +287,10 @@ type RouteFiles = {
     id: "routes/api.invoices.$id.pdf";
     page: "/api/invoices/:id/pdf";
   };
+  "routes/api.invoices.$id.xml.ts": {
+    id: "routes/api.invoices.$id.xml";
+    page: "/api/invoices/:id/xml";
+  };
   "routes/api.reports.ts": {
     id: "routes/api.reports";
     page: "/api/reports";
@@ -323,5 +332,6 @@ type RouteModules = {
   "routes/api.invoices": typeof import("./app/routes/api.invoices.ts");
   "routes/api.invoices.$id": typeof import("./app/routes/api.invoices.$id.ts");
   "routes/api.invoices.$id.pdf": typeof import("./app/routes/api.invoices.$id.pdf.ts");
+  "routes/api.invoices.$id.xml": typeof import("./app/routes/api.invoices.$id.xml.ts");
   "routes/api.reports": typeof import("./app/routes/api.reports.ts");
 };

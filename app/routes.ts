@@ -41,5 +41,6 @@ export default [
   route("api/invoices", "routes/api.invoices.ts"),
   route("api/invoices/:id", "routes/api.invoices.$id.ts"),
   route("api/invoices/:id/pdf", "routes/api.invoices.$id.pdf.ts"),
+  route("api/invoices/:id/xml", "routes/api.invoices.$id.xml.ts"),
   route("api/reports", "routes/api.reports.ts"),
 ] satisfies RouteConfig;

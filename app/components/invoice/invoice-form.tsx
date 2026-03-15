@@ -276,10 +276,9 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultValues, def
         </div>
 
         <div className="border border-gray-200 rounded-xl">
-          <div className={`grid gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600 rounded-t-xl ${kleinunternehmer ? "grid-cols-11" : "grid-cols-12"}`}>
+          <div className={`grid gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600 rounded-t-xl ${kleinunternehmer ? "grid-cols-10" : "grid-cols-11"}`}>
             <div className="col-span-4">Beschreibung</div>
             <div className="col-span-1">Menge</div>
-            <div className="col-span-1">Einh.</div>
             <div className="col-span-2">{kleinunternehmer ? "Einzelpreis (brutto)" : "Einzelpreis"}</div>
             {!kleinunternehmer && <div className="col-span-1">MwSt.</div>}
             <div className="col-span-2 text-right">Gesamt (brutto)</div>
@@ -287,7 +286,7 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultValues, def
           </div>
 
           {fields.map((field, index) => (
-            <div key={field.id} className={`grid gap-2 px-3 py-2.5 border-b border-gray-100 last:border-0 items-center ${kleinunternehmer ? "grid-cols-11" : "grid-cols-12"}`}>
+            <div key={field.id} className={`grid gap-2 px-3 py-2.5 border-b border-gray-100 last:border-0 items-center ${kleinunternehmer ? "grid-cols-10" : "grid-cols-11"}`}>
               <div className="col-span-4 relative">
                 {(() => {
                   const descValue = watchedItems[index]?.description ?? "";
@@ -339,13 +338,6 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultValues, def
                   {...register(`items.${index}.quantity`)}
                   className="text-sm text-right"
                   onBlur={() => recalcItem(index)}
-                />
-              </div>
-              <div className="col-span-1">
-                <Input
-                  {...register(`items.${index}.unit`)}
-                  placeholder="Stück"
-                  className="text-sm"
                 />
               </div>
               <div className="col-span-2">

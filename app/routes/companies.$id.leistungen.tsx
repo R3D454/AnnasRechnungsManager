@@ -26,7 +26,6 @@ import { TAX_RATES, formatCurrency } from "@/lib/tax";
 const schema = z.object({
   name: z.string().min(1, "Pflichtfeld"),
   description: z.string().optional(),
-  unit: z.string().optional(),
   unitPrice: z.coerce.number({ invalid_type_error: "Ungültiger Betrag" }),
   taxRate: z.coerce.number(),
 });
@@ -36,7 +35,6 @@ interface Service {
   id: string;
   name: string;
   description: string | null;
-  unit: string | null;
   unitPrice: number;
   taxRate: number;
 }
@@ -89,16 +87,10 @@ function ServiceForm({
         <Label>Beschreibung</Label>
         <Input {...register("description")} placeholder="Optionale Leistungsbeschreibung" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="space-y-1.5">
-          <Label>Einheit</Label>
-          <Input {...register("unit")} placeholder="Stunde, Stück, ..." />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Einzelpreis (€) *</Label>
-          <Input {...register("unitPrice")} type="number" step="0.01" placeholder="0.00" />
-          {errors.unitPrice && <p className="text-xs text-red-600">{errors.unitPrice.message}</p>}
-        </div>
+      <div className="space-y-1.5">
+        <Label>Einzelpreis (€) *</Label>
+        <Input {...register("unitPrice")} type="number" step="0.01" placeholder="0.00" />
+        {errors.unitPrice && <p className="text-xs text-red-600">{errors.unitPrice.message}</p>}
       </div>
       <div className="space-y-1.5">
         <Label>Steuersatz</Label>
@@ -127,7 +119,7 @@ function ServiceForm({
   );
 }
 
-type SortKey = "name" | "description" | "unit" | "unitPrice" | "taxRate";
+type SortKey = "name" | "description" | "unitPrice" | "taxRate";
 type SortDir = "asc" | "desc";
 
 export default function LeistungenPage() {
@@ -220,7 +212,6 @@ export default function LeistungenPage() {
               defaultValues={{
                 name: editService.name,
                 description: editService.description ?? undefined,
-                unit: editService.unit ?? undefined,
                 unitPrice: editService.unitPrice,
                 taxRate: editService.taxRate,
               }}
@@ -244,8 +235,8 @@ export default function LeistungenPage() {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
-                  {(["name", "description", "unit", "unitPrice", "taxRate"] as SortKey[]).map((key, i) => {
-                    const labels: Record<SortKey, string> = { name: "Bezeichnung", description: "Beschreibung", unit: "Einheit", unitPrice: "Preis", taxRate: "MwSt." };
+                  {(["name", "description", "unitPrice", "taxRate"] as SortKey[]).map((key, i) => {
+                    const labels: Record<SortKey, string> = { name: "Bezeichnung", description: "Beschreibung", unitPrice: "Preis", taxRate: "MwSt." };
                     const isNum = key === "unitPrice" || key === "taxRate";
                     const active = sortKey === key;
                     const Icon = active ? (sortDir === "asc" ? ChevronUp : ChevronDown) : ChevronsUpDown;
@@ -270,7 +261,6 @@ export default function LeistungenPage() {
                   <tr key={service.id} className="hover:bg-slate-50 transition-colors">
                     <td className="px-4 py-3 font-medium text-slate-800">{service.name}</td>
                     <td className="px-4 py-3 text-slate-500 max-w-xs truncate">{service.description ?? "-"}</td>
-                    <td className="px-4 py-3 text-slate-500">{service.unit ?? "-"}</td>
                     <td className="px-4 py-3 text-right text-slate-800">{formatCurrency(service.unitPrice)}</td>
                     <td className="px-4 py-3 text-right text-slate-500">{service.taxRate}%</td>
                     <td className="px-4 py-3">

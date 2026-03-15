@@ -168,16 +168,24 @@ export default function InvoiceDetailPage() {
  * It then creates a blob URL from the response and creates a new anchor element with the blob URL and a download attribute with the filename.
  * It then simulates a click event on the anchor element, so the user is prompted to download the PDF file.
  */
-  async function downloadPdf() {
-    const res = await fetch(`/api/invoices/${invoice.id}/pdf`);
+  async function downloadFile(url: string, filename: string) {
+    const res = await fetch(url);
     if (!res.ok) return;
     const blob = await res.blob();
-    const url = URL.createObjectURL(blob);
+    const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
-    a.href = url;
-    a.download = `rechnung-${invoice.number ?? invoice.id}.pdf`;
+    a.href = objectUrl;
+    a.download = filename;
     a.click();
-    URL.revokeObjectURL(url);
+    URL.revokeObjectURL(objectUrl);
+  }
+
+  function downloadPdf() {
+    return downloadFile(`/api/invoices/${invoice.id}/pdf`, `rechnung-${invoice.number ?? invoice.id}.pdf`);
+  }
+
+  function downloadXml() {
+    return downloadFile(`/api/invoices/${invoice.id}/xml`, `rechnung-${invoice.number ?? invoice.id}.xml`);
   }
 
   return (
@@ -203,9 +211,14 @@ export default function InvoiceDetailPage() {
         {/* Invoice Actions */}
         <div className="flex items-center gap-2">
           {invoice.status !== "DELETED" && (
-            <Button variant="outline" size="sm" onClick={downloadPdf}>
-              <Download className="h-4 w-4" /> PDF
-            </Button>
+            <>
+              <Button variant="outline" size="sm" onClick={downloadPdf}>
+                <Download className="h-4 w-4" /> PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={downloadXml}>
+                <Download className="h-4 w-4" /> E-Rechnung
+              </Button>
+            </>
           )}
           {invoice.status === "DRAFT" && (
             <Button variant="outline" size="sm" asChild>
@@ -336,9 +349,7 @@ export default function InvoiceDetailPage() {
                       <tr key={item.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3 text-gray-500">{item.position}</td>
                         <td className="px-4 py-3 text-gray-900">{item.description}</td>
-                        <td className="px-4 py-3 text-right text-gray-700">
-                          {item.quantity} {item.unit && <span className="text-gray-500">{item.unit}</span>}
-                        </td>
+                        <td className="px-4 py-3 text-right text-gray-700">{item.quantity}</td>
                         <td className="px-4 py-3 text-right text-gray-700">{formatCurrency(item.unitPrice)}</td>
                         <td className="px-4 py-3 text-right text-gray-700">{item.taxRate}%</td>
                         <td className="px-4 py-3 text-right font-medium text-gray-900">{formatCurrency(item.grossAmount)}</td>
