@@ -195,9 +195,8 @@ export default function InvoiceDetailPage() {
   }
 
   const xmlMissingFields: string[] = [];
-  if (!invoice.company.email && !invoice.company.phone) {
-    xmlMissingFields.push("E-Mail oder Telefon der Firma fehlt");
-  }
+  if (!invoice.company.phone) xmlMissingFields.push("Telefonnummer der Firma fehlt");
+  if (!invoice.company.email) xmlMissingFields.push("E-Mail-Adresse der Firma fehlt");
 
   function downloadXml() {
     return downloadFile(`/api/invoices/${invoice.id}/xml`, `rechnung-${invoice.number ?? invoice.id}.xml`);

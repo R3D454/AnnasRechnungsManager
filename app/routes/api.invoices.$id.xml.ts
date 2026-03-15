@@ -36,8 +36,11 @@ export async function loader({ request, params }: { request: Request; params: { 
   if (!invoice) return Response.json({ error: "Not found" }, { status: 404 });
 
   const missingFields: string[] = [];
-  if (!invoice.company.email && !invoice.company.phone) {
-    missingFields.push("Firma: E-Mail oder Telefon (Kontaktdaten, BR-DE-2)");
+  if (!invoice.company.phone) {
+    missingFields.push("Firma: Telefonnummer (BT-42, Pflichtfeld)");
+  }
+  if (!invoice.company.email) {
+    missingFields.push("Firma: E-Mail-Adresse (BT-43, Pflichtfeld)");
   }
   if (missingFields.length > 0) {
     return Response.json(
