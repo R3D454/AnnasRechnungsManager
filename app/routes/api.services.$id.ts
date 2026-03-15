@@ -20,7 +20,7 @@ export async function action({ request, params }: { request: Request; params: { 
   if (!service) return Response.json({ error: "Not found" }, { status: 404 });
 
   if (request.method === "DELETE") {
-    await prisma.service.delete({ where: { id: params.id } });
+    await prisma.service.delete({ where: { id: params.id, company: { userId: user.id } } });
     return Response.json({ ok: true });
   }
 

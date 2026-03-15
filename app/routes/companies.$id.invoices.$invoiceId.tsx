@@ -170,7 +170,17 @@ export default function InvoiceDetailPage() {
  */
   async function downloadFile(url: string, filename: string) {
     const res = await fetch(url);
-    if (!res.ok) return;
+    if (!res.ok) {
+      const contentType = res.headers.get("content-type") ?? "";
+      if (contentType.includes("application/json")) {
+        const data = await res.json() as { error?: string; missingFields?: string[] };
+        const detail = data.missingFields?.length
+          ? `\n\n• ${data.missingFields.join("\n• ")}`
+          : "";
+        alert(`${data.error ?? "Fehler"}${detail}`);
+      }
+      return;
+    }
     const blob = await res.blob();
     const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
@@ -182,6 +192,11 @@ export default function InvoiceDetailPage() {
 
   function downloadPdf() {
     return downloadFile(`/api/invoices/${invoice.id}/pdf`, `rechnung-${invoice.number ?? invoice.id}.pdf`);
+  }
+
+  const xmlMissingFields: string[] = [];
+  if (!invoice.company.email && !invoice.company.phone) {
+    xmlMissingFields.push("E-Mail oder Telefon der Firma fehlt");
   }
 
   function downloadXml() {
@@ -215,9 +230,20 @@ export default function InvoiceDetailPage() {
               <Button variant="outline" size="sm" onClick={downloadPdf}>
                 <Download className="h-4 w-4" /> PDF
               </Button>
-              <Button variant="outline" size="sm" onClick={downloadXml}>
-                <Download className="h-4 w-4" /> E-Rechnung
-              </Button>
+              <span
+                title={xmlMissingFields.length > 0 ? `Pflichtfelder fehlen:\n• ${xmlMissingFields.join("\n• ")}` : undefined}
+                className="inline-flex"
+              >
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={downloadXml}
+                  disabled={xmlMissingFields.length > 0}
+                  className={xmlMissingFields.length > 0 ? "pointer-events-none opacity-50" : ""}
+                >
+                  <Download className="h-4 w-4" /> E-Rechnung
+                </Button>
+              </span>
             </>
           )}
           {invoice.status === "DRAFT" && (

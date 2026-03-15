@@ -1,5 +1,6 @@
 import { Form, useActionData, useNavigation, redirect } from "react-router";
 import { login, createUserSession, getUserSession } from "@/session.server";
+import { checkLoginRateLimit } from "@/lib/rate-limiter.server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -13,6 +14,9 @@ export async function loader({ request }: { request: Request }) {
 }
 
 export async function action({ request }: { request: Request }) {
+  const rateLimitError = await checkLoginRateLimit(request);
+  if (rateLimitError) return { error: rateLimitError };
+
   const formData = await request.formData();
   const identifier = formData.get("identifier") as string;
   const password = formData.get("password") as string;

@@ -35,7 +35,7 @@ export async function action({ request, params }: { request: Request; params: { 
   if (!customer) return Response.json({ error: "Not found" }, { status: 404 });
 
   if (request.method === "DELETE") {
-    await prisma.customer.delete({ where: { id: params.id } });
+    await prisma.customer.delete({ where: { id: params.id, company: { userId: user.id } } });
     return Response.json({ ok: true });
   }
 

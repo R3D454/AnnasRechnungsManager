@@ -1,6 +1,7 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
 import { generateInvoiceNumber } from "@/lib/invoice-number.server";
+import { log } from "@/lib/logger.server";
 import { InvoiceStatus } from "@prisma/client";
 import { z } from "zod";
 
@@ -43,9 +44,9 @@ const updateSchema = z.object({
   notes: z.string().optional(),
   kleinunternehmer: z.boolean().optional().default(false),
   items: z.array(itemSchema).min(1),
-  netTotal: z.number(),
-  taxTotal: z.number(),
-  grossTotal: z.number(),
+  netTotal: z.number().nonnegative(),
+  taxTotal: z.number().nonnegative(),
+  grossTotal: z.number().nonnegative(),
 });
 
 export async function action({ request, params }: { request: Request; params: { id: string } }) {
@@ -92,6 +93,7 @@ export async function action({ request, params }: { request: Request; params: { 
       );
     }
     await prisma.invoice.delete({ where: { id: params.id } });
+    await log({ userId: user.id, action: "DELETE_INVOICE", entity: "Invoice", entityId: params.id, request });
     return Response.json({ ok: true });
   }
 

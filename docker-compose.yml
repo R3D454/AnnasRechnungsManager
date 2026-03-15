@@ -4,10 +4,10 @@ services:
     container_name: annas_mariadb
     restart: unless-stopped
     environment:
-      MYSQL_ROOT_PASSWORD: rootpassword
-      MYSQL_DATABASE: annas_rechnungen
-      MYSQL_USER: annas_user
-      MYSQL_PASSWORD: annas_password
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      MYSQL_DATABASE: ${DB_NAME:-annas_rechnungen}
+      MYSQL_USER: ${DB_USER}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
     volumes:
       - mariadb_data:/var/lib/mysql
     networks:
@@ -27,12 +27,12 @@ services:
     ports:
       - "3000:3000"
     environment:
-      DATABASE_URL: mysql://annas_user:annas_password@mariadb:3306/annas_rechnungen
-      AUTH_SECRET: changeme123
+      DATABASE_URL: mysql://${DB_USER}:${DB_PASSWORD}@mariadb:3306/${DB_NAME:-annas_rechnungen}
+      AUTH_SECRET: ${AUTH_SECRET}
       NODE_ENV: production
       # Beim ersten Start wird der Admin-Benutzer (username: admin) mit diesem Passwort angelegt.
       # Nach dem ersten Login in der App ändern und hier leer lassen oder entfernen.
-      ADMIN_PASSWORD: changeme123
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
     depends_on:
       mariadb:
         condition: service_healthy

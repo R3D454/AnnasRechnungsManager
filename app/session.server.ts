@@ -3,15 +3,19 @@ import bcrypt from "bcryptjs";
 import prisma from "@/lib/prisma.server";
 import { log } from "@/lib/logger.server";
 
+if (!process.env.AUTH_SECRET) {
+  throw new Error("AUTH_SECRET environment variable is required");
+}
+
 const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__session",
     httpOnly: true,
-    maxAge: process.env.NODE_ENV === "development" ? 60 * 60 * 24 * 30 : 60 * 60 * 4,
+    maxAge: 60 * 60 * 4, // 4 Stunden
     path: "/",
     sameSite: "lax",
-    secrets: [process.env.AUTH_SECRET ?? "fallback-secret-change-in-production"],
-    secure: process.env.SESSION_SECURE === "true",
+    secrets: [process.env.AUTH_SECRET],
+    secure: process.env.NODE_ENV === "production",
   },
 });
 
@@ -28,6 +32,8 @@ export async function login(
   });
 
   if (!user) {
+    // Dummy-Vergleich verhindert Timing-Angriffe zur Benutzernamen-Enumeration
+    await bcrypt.compare(password, "$2a$12$dummyhashfortimingattackprevention000000000000000000000");
     await log({ action: "LOGIN_FAILED", metadata: { identifier }, request });
     return null;
   }

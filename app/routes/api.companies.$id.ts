@@ -1,5 +1,6 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
+import { log } from "@/lib/logger.server";
 import { z } from "zod";
 
 const companySchema = z.object({
@@ -39,7 +40,8 @@ export async function action({ request, params }: { request: Request; params: { 
   if (!company) return Response.json({ error: "Not found" }, { status: 404 });
 
   if (request.method === "DELETE") {
-    await prisma.company.delete({ where: { id: params.id } });
+    await prisma.company.delete({ where: { id: params.id, userId: user.id } });
+    await log({ userId: user.id, action: "DELETE_COMPANY", entity: "Company", entityId: params.id, request });
     return Response.json({ ok: true });
   }
 

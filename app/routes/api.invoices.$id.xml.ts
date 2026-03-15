@@ -35,6 +35,17 @@ export async function loader({ request, params }: { request: Request; params: { 
 
   if (!invoice) return Response.json({ error: "Not found" }, { status: 404 });
 
+  const missingFields: string[] = [];
+  if (!invoice.company.email && !invoice.company.phone) {
+    missingFields.push("Firma: E-Mail oder Telefon (Kontaktdaten, BR-DE-2)");
+  }
+  if (missingFields.length > 0) {
+    return Response.json(
+      { error: "Pflichtfelder für E-Rechnung fehlen", missingFields },
+      { status: 422 }
+    );
+  }
+
   const { zugferd } = await import("node-zugferd");
   const { EN16931 } = await import("node-zugferd/profile");
 
@@ -73,7 +84,8 @@ export async function loader({ request, params }: { request: Request; params: { 
         rateApplicablePercent: Number(rate),
       }));
 
-  const lines = invoice.items.map((item) => ({
+  const lines = invoice.items.map((item, index) => ({
+    identifier: String(index + 1),
     tradeProduct: { name: item.description },
     tradeDelivery: {
       billedQuantity: {
@@ -95,11 +107,14 @@ export async function loader({ request, params }: { request: Request; params: { 
   }));
 
   const doc = z.create({
+    businessProcessType: "urn:fdc:peppol.eu:2017:poacc:billing:01:1.0",
+    specificationIdentifier: "urn:cen.eu:en16931:2017#compliant#urn:xeinkauf.de:kosit:xrechnung_3.0",
     number: invoice.number ?? invoice.id,
     typeCode: "380",
     issueDate: invoice.issueDate,
     transaction: {
       tradeAgreement: {
+        buyerReference: invoice.number ?? invoice.id,
         seller: {
           name: invoice.company.name,
           postalAddress: {
@@ -108,6 +123,18 @@ export async function loader({ request, params }: { request: Request; params: { 
             ...(invoice.company.city ? { city: invoice.company.city } : {}),
             countryCode: "DE",
           },
+          ...(invoice.company.email || invoice.company.phone
+            ? {
+                tradeContact: {
+                  name: invoice.company.name,
+                  ...(invoice.company.email ? { emailAddress: invoice.company.email } : {}),
+                  ...(invoice.company.phone ? { phoneNumber: invoice.company.phone } : {}),
+                },
+              }
+            : {}),
+          ...(invoice.company.email
+            ? { electronicAddress: { value: invoice.company.email, schemeIdentifier: "EM" as const } }
+            : {}),
           taxRegistration: {
             ...(invoice.company.vatId ? { vatIdentifier: invoice.company.vatId } : {}),
             ...(invoice.company.taxId ? { localIdentifier: invoice.company.taxId } : {}),
@@ -121,6 +148,9 @@ export async function loader({ request, params }: { request: Request; params: { 
             ...(invoice.customer.city ? { city: invoice.customer.city } : {}),
             countryCode: "DE",
           },
+          ...(invoice.customer.email
+            ? { electronicAddress: { value: invoice.customer.email, schemeIdentifier: "EM" as const } }
+            : {}),
         },
       },
       tradeDelivery: {
@@ -131,6 +161,18 @@ export async function loader({ request, params }: { request: Request; params: { 
       tradeSettlement: {
         currencyCode: "EUR",
         paymentTerms: { dueDate: invoice.dueDate },
+        ...(invoice.company.bankIban
+          ? {
+              paymentInstruction: {
+                typeCode: "58" as const,
+                transfers: [{ paymentAccountIdentifier: invoice.company.bankIban }],
+              },
+            }
+          : {
+              paymentInstruction: {
+                typeCode: "ZZZ" as const,
+              },
+            }),
         vatBreakdown,
         monetarySummation: {
           lineTotalAmount: netTotal,
@@ -144,9 +186,15 @@ export async function loader({ request, params }: { request: Request; params: { 
     },
   });
 
-  const xml = await doc.toXML();
+  let xml: string;
+  try {
+    xml = await doc.toXML() as string;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Unbekannter Fehler";
+    return Response.json({ error: `E-Rechnung konnte nicht erstellt werden: ${message}` }, { status: 422 });
+  }
 
-  return new Response(xml as string, {
+  return new Response(xml, {
     status: 200,
     headers: {
       "Content-Type": "application/xml; charset=utf-8",
