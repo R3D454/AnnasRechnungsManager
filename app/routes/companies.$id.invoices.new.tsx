@@ -14,6 +14,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { InvoiceForm } from "@/components/invoice/invoice-form";
 import { ChevronLeft } from "lucide-react";
 
+/**
+ * Loads the company, customers, and services for the given company ID.
+ *
+ * If the company is not found, returns a 404 response with an error message.
+ * If the user is not authorized, returns a 401 response with an error message.
+ * If there are no customers, redirects to the customers page.
+ *
+ * @param {Request} request - The request object.
+ * @param {{ id: string }} params - The route parameters.
+ * @returns {Promise<Response>} - The response data.
+ */
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
   const user = await requireUser(request);
   const { id } = params;
@@ -33,11 +44,31 @@ export async function loader({ request, params }: { request: Request; params: { 
     throw redirect(`/companies/${id}/customers`);
   }
 
-  return { company, customers };
+  const services = await prisma.service.findMany({
+    where: { companyId: id },
+    orderBy: { name: "asc" },
+  });
+
+  return {
+    company,
+    customers,
+    services: services.map((s) => ({
+      ...s,
+      unitPrice: Number(s.unitPrice),
+      taxRate: Number(s.taxRate),
+    })),
+  };
 }
 
+/**
+ * NewInvoicePage
+ *
+ * This page allows the user to create a new invoice for a given company.
+ * It will display the company's name and allow the user to select a customer and add items to the invoice.
+ * After submitting the form, the user will be redirected to the invoice detail page.
+ */
 export default function NewInvoicePage() {
-  const { company, customers } = useLoaderData<typeof loader>();
+  const { company, customers, services } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
 
   async function handleSubmit(data: Record<string, unknown>) {
@@ -74,7 +105,7 @@ export default function NewInvoicePage() {
           <CardTitle>Rechnungsdaten</CardTitle>
         </CardHeader>
         <CardContent>
-          <InvoiceForm customers={customers} companyId={company.id} defaultKleinunternehmer={company.kleinunternehmer} onSubmit={handleSubmit} />
+          <InvoiceForm customers={customers} companyId={company.id} defaultKleinunternehmer={company.kleinunternehmer} services={services} onSubmit={handleSubmit} />
         </CardContent>
       </Card>
     </div>

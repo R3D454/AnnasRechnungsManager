@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/tax";
 import {
   FileText, Users, BarChart3, Plus, Edit, Building2,
-  Mail, Phone, CreditCard, Receipt, Archive, ArchiveRestore, AlertTriangle
+  Mail, Phone, CreditCard, Receipt, Archive, ArchiveRestore, AlertTriangle, Briefcase
 } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
 import { useState } from "react";
@@ -35,6 +35,18 @@ const statusVariants: Record<InvoiceStatus, "secondary" | "default" | "success" 
   DELETED: "outline",
 };
 
+/**
+ * Loads a company by its ID.
+ *
+ * The response contains the company's name, archived at date, invoices, and revenue.
+ *
+ * The invoices are paginated to show the 5 most recent ones.
+ *
+ * The revenue is the sum of all paid invoices.
+ *
+ * If the company is not found, returns a 404 response with an error message.
+ * If the user is not authorized, returns a 401 response with an error message.
+ */
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
   const user = await requireUser(request);
   const { id } = params;
@@ -43,6 +55,7 @@ export async function loader({ request, params }: { request: Request; params: { 
     where: { id, userId: user.id },
     include: {
       invoices: {
+        where: { status: { not: InvoiceStatus.DELETED } },
         include: { customer: { select: { name: true } } },
         orderBy: { issueDate: "desc" },
         take: 5,
@@ -74,6 +87,22 @@ export async function loader({ request, params }: { request: Request; params: { 
   };
 }
 
+/**
+ * CompanyPage displays information about a company.
+ *
+ * The page displays the company's name, address, and legal form.
+ * It also displays the company's archived status, if applicable.
+ * If the user is an admin, the page displays buttons to toggle the company's archived status and to edit the company.
+ *
+ * The page also displays a list of the company's most recent invoices.
+ * The list shows the invoice number, customer name, issue date, and gross total.
+ * The user can click on an invoice to view its details.
+ *
+ * The page also displays the company's revenue, which is the sum of all paid invoices.
+ * If the company has a tax ID or VAT ID, the page displays it.
+ *
+ * Finally, the page displays contact information for the company, if applicable.
+ */
 export default function CompanyPage() {
   const { company, revenue, isAdmin } = useLoaderData<typeof loader>();
   const { revalidate } = useRevalidator();
@@ -183,6 +212,16 @@ export default function CompanyPage() {
             </CardContent>
           </Card>
         </Link>
+        <Link to={`/companies/${id}/leistungen`} className="block">
+          <Card className="hover:border-orange-200 hover:shadow-sm transition-all cursor-pointer">
+            <CardContent className="pt-4 pb-4 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-orange-50">
+                <Briefcase className="h-4 w-4 text-orange-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Leistungen</span>
+            </CardContent>
+          </Card>
+        </Link>
         <Link to={`/companies/${id}/reports`} className="block">
           <Card className="hover:border-purple-200 hover:shadow-sm transition-all cursor-pointer">
             <CardContent className="pt-4 pb-4 flex items-center gap-3">
@@ -218,7 +257,7 @@ export default function CompanyPage() {
                     className="flex items-center justify-between px-4 py-3 hover:bg-gray-50 transition-colors"
                   >
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{invoice.number}</p>
+                      <p className="text-sm font-medium text-gray-900">{invoice.number ?? "-"}</p>
                       <p className="text-xs text-gray-500">{invoice.customer.name} · {formatDate(invoice.issueDate)}</p>
                     </div>
                     <div className="flex items-center gap-3">

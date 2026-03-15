@@ -29,6 +29,39 @@ const invoiceSchema = z.object({
   grossTotal: z.number(),
 });
 
+/**
+ * Creates a new invoice for a given company.
+ *
+ * Requires a JSON object in the request body with the following shape:
+ * {
+ *   companyId: string,
+ *   customerId: string,
+ *   issueDate: string,
+ *   deliveryDate?: string,
+ *   dueDate: string,
+ *   notes?: string,
+ *   kleinunternehmer?: boolean,
+ *   items: [
+ *     {
+ *       position: number,
+ *       description: string,
+ *       quantity: number,
+ *       unit?: string,
+ *       unitPrice: number,
+ *       taxRate: number,
+ *       netAmount: number,
+ *       taxAmount: number,
+ *       grossAmount: number,
+ *     },
+ *   ],
+ * }
+ *
+ * Returns the created invoice as a JSON object.
+ *
+ * If the request is unauthorized, returns a 401 response with an error message.
+ * If the request body is invalid, returns a 400 response with an error message containing the validation errors.
+ * If the company is not found, returns a 404 response with an error message.
+ */
 export async function action({ request }: { request: Request }) {
   const user = await getApiUser(request);
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });

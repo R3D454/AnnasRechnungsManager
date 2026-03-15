@@ -1,4 +1,5 @@
 import { useState, useCallback } from "react";
+import { useRevalidator } from "react-router";
 import { useForm, useFieldArray } from "react-hook-form";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calcItemAmounts, calcItemAmountsKleinunternehmer, calcInvoiceTotals, formatCurrency, TAX_RATES } from "@/lib/tax";
 import { Plus, Trash2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Customer {
   id: string;
@@ -34,12 +36,23 @@ interface InvoiceFormValues {
   items: ItemFormData[];
 }
 
+interface ServiceOption {
+  id: string;
+  name: string;
+  description: string | null;
+  unit: string | null;
+  unitPrice: number;
+  taxRate: number;
+}
+
 interface InvoiceFormProps {
   customers: Customer[];
   companyId: string;
   onSubmit: (data: Record<string, unknown>) => Promise<void>;
   defaultValues?: Partial<InvoiceFormValues>;
   defaultKleinunternehmer?: boolean;
+  submitLabel?: string;
+  services?: ServiceOption[];
 }
 
 const defaultItem = (): ItemFormData => ({
@@ -54,19 +67,33 @@ const defaultItem = (): ItemFormData => ({
   grossAmount: 0,
 });
 
-export function InvoiceForm({ customers, companyId, onSubmit, defaultKleinunternehmer = false }: InvoiceFormProps) {
+/**
+ * A form for creating an invoice.
+ *
+ * @param {Object} props
+ * @param {Customer[]} customers - List of customers
+ * @param {string} companyId - Company ID
+ * @param {(data: Record<string, unknown>) => Promise<void>} onSubmit - Callback for form submission
+ * @param {Partial<InvoiceFormValues>} defaultValues - Default values for the form
+ * @param {boolean} defaultKleinunternehmer - Whether to use Kleinunternehmer (§19 UStG) by default
+ * @param {string} submitLabel - Label for the submit button
+ * @param {ServiceOption[]} services - List of services that can be added to the invoice
+ */
+export function InvoiceForm({ customers, companyId, onSubmit, defaultValues, defaultKleinunternehmer = false, submitLabel = "Rechnung erstellen", services = [] }: InvoiceFormProps) {
   const today = new Date().toISOString().split("T")[0];
   const dueDefault = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
   const [kleinunternehmer, setKleinunternehmer] = useState(defaultKleinunternehmer);
+  const [openDropdown, setOpenDropdown] = useState<number | null>(null);
+  const { revalidate } = useRevalidator();
 
   const { register, handleSubmit, watch, setValue, control, formState: { errors, isSubmitting } } = useForm<InvoiceFormValues>({
     defaultValues: {
-      customerId: "",
-      issueDate: today,
-      deliveryDate: today,
-      dueDate: dueDefault,
-      notes: "",
-      items: [defaultItem()],
+      customerId: defaultValues?.customerId ?? "",
+      issueDate: defaultValues?.issueDate ?? today,
+      deliveryDate: defaultValues?.deliveryDate ?? today,
+      dueDate: defaultValues?.dueDate ?? dueDefault,
+      notes: defaultValues?.notes ?? "",
+      items: defaultValues?.items ?? [defaultItem()],
     },
   });
 
@@ -100,6 +127,17 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultKleinuntern
     }))
   );
 
+/**
+ * Handles form submission by processing the items and calculating the totals.
+ *
+ * If Kleinunternehmer are enabled, the tax rate for each item is set to 0.
+ *
+ * If the item does not have a description, the tax rate is set to 0.
+ *
+ * The function then saves the new services created and revalidates the form if necessary.
+ *
+ * Finally, the function calls the onSubmit callback with the processed data.
+ */
   async function handleFormSubmit(data: InvoiceFormValues) {
     const items = data.items.map((item, i) => {
       const qty = parseFloat(item.quantity) || 0;
@@ -135,6 +173,31 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultKleinuntern
 
     const totals = calcInvoiceTotals(items);
 
+    // Neue Leistungen automatisch speichern
+    const newServices = items.filter((item) =>
+      item.description.trim() &&
+      !services.some(
+        (s) => s.name.toLowerCase() === item.description.trim().toLowerCase() ||
+               (s.description ?? "").toLowerCase() === item.description.trim().toLowerCase()
+      )
+    );
+    await Promise.all(
+      newServices.map((item) =>
+        fetch("/api/services", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            companyId,
+            name: item.description.trim(),
+            unit: item.unit || undefined,
+            unitPrice: item.unitPrice,
+            taxRate: item.taxRate,
+          }),
+        })
+      )
+    );
+    if (newServices.length > 0) revalidate();
+
     await onSubmit({
       companyId,
       customerId: data.customerId,
@@ -153,7 +216,7 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultKleinuntern
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="space-y-1.5">
           <Label>Kunde *</Label>
-          <Select onValueChange={(v) => setValue("customerId", v)}>
+          <Select defaultValue={defaultValues?.customerId} onValueChange={(v) => setValue("customerId", v)}>
             <SelectTrigger>
               <SelectValue placeholder="Kunde auswählen..." />
             </SelectTrigger>
@@ -212,8 +275,8 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultKleinuntern
           </Button>
         </div>
 
-        <div className="border border-gray-200 rounded-xl overflow-hidden">
-          <div className={`grid gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600 ${kleinunternehmer ? "grid-cols-11" : "grid-cols-12"}`}>
+        <div className="border border-gray-200 rounded-xl">
+          <div className={`grid gap-2 px-3 py-2 bg-gray-50 border-b border-gray-200 text-xs font-medium text-gray-600 rounded-t-xl ${kleinunternehmer ? "grid-cols-11" : "grid-cols-12"}`}>
             <div className="col-span-4">Beschreibung</div>
             <div className="col-span-1">Menge</div>
             <div className="col-span-1">Einh.</div>
@@ -225,12 +288,51 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultKleinuntern
 
           {fields.map((field, index) => (
             <div key={field.id} className={`grid gap-2 px-3 py-2.5 border-b border-gray-100 last:border-0 items-center ${kleinunternehmer ? "grid-cols-11" : "grid-cols-12"}`}>
-              <div className="col-span-4">
-                <Input
-                  {...register(`items.${index}.description`, { required: true })}
-                  placeholder="Leistungsbeschreibung"
-                  className="text-sm"
-                />
+              <div className="col-span-4 relative">
+                {(() => {
+                  const descValue = watchedItems[index]?.description ?? "";
+                  const filtered = services.filter((s) =>
+                    descValue.length === 0 ||
+                    s.name.toLowerCase().includes(descValue.toLowerCase()) ||
+                    (s.description ?? "").toLowerCase().includes(descValue.toLowerCase())
+                  );
+                  return (
+                    <>
+                      <Input
+                        value={descValue}
+                        onChange={(e) => setValue(`items.${index}.description`, e.target.value)}
+                        onFocus={() => setOpenDropdown(index)}
+                        onBlur={() => setOpenDropdown(null)}
+                        placeholder="Leistungsbeschreibung"
+                        className="text-sm"
+                        autoComplete="off"
+                      />
+                      {openDropdown === index && services.length > 0 && filtered.length > 0 && (
+                        <div className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg max-h-48 overflow-y-auto">
+                          {filtered.map((s) => (
+                            <button
+                              key={s.id}
+                              type="button"
+                              className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col"
+                              onMouseDown={(e) => {
+                                e.preventDefault();
+                                setValue(`items.${index}.description`, s.description ?? s.name);
+                                setValue(`items.${index}.unit`, s.unit ?? "Stück");
+                                setValue(`items.${index}.unitPrice`, String(s.unitPrice));
+                                setValue(`items.${index}.taxRate`, String(s.taxRate));
+                                setOpenDropdown(null);
+                                setTimeout(() => recalcItem(index), 0);
+                              }}
+                            >
+                              <span className="font-medium text-gray-800">{s.name}</span>
+                              {s.description && <span className="text-xs text-gray-400 truncate">{s.description}</span>}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </>
+                  );
+                })()}
               </div>
               <div className="col-span-1">
                 <Input
@@ -256,7 +358,7 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultKleinuntern
               {!kleinunternehmer && (
                 <div className="col-span-1">
                   <Select
-                    defaultValue="19"
+                    defaultValue={defaultValues?.items?.[index]?.taxRate ?? "19"}
                     onValueChange={(v) => {
                       setValue(`items.${index}.taxRate`, v);
                       recalcItem(index);
@@ -334,7 +436,7 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultKleinuntern
 
       <div className="flex justify-end pt-2">
         <Button type="submit" disabled={isSubmitting} size="lg">
-          {isSubmitting ? "Erstelle Rechnung..." : "Rechnung erstellen"}
+          {isSubmitting ? "Speichere..." : submitLabel}
         </Button>
       </div>
     </form>

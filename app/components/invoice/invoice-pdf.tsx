@@ -199,7 +199,7 @@ function formatDate(date: Date | string) {
 
 interface InvoicePDFProps {
   invoice: {
-    number: string;
+    number: string | null;
     issueDate: Date | string;
     deliveryDate?: Date | string | null;
     dueDate: Date | string;
@@ -302,7 +302,7 @@ export function InvoicePDFDocument({ invoice }: InvoicePDFProps) {
         <View style={styles.metaGrid}>
           <View style={styles.metaItem}>
             <Text style={styles.metaLabel}>Rechnungsnummer</Text>
-            <Text style={styles.metaValue}>{invoice.number}</Text>
+            <Text style={styles.metaValue}>{invoice.number ?? "-"}</Text>
           </View>
           <View style={styles.metaItem}>
             <Text style={styles.metaLabel}>Rechnungsdatum</Text>

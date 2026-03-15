@@ -7,7 +7,7 @@ const sessionStorage = createCookieSessionStorage({
   cookie: {
     name: "__session",
     httpOnly: true,
-    maxAge: 60 * 60 * 24 * 30,
+    maxAge: process.env.NODE_ENV === "development" ? 60 * 60 * 24 * 30 : 60 * 60 * 4,
     path: "/",
     sameSite: "lax",
     secrets: [process.env.AUTH_SECRET ?? "fallback-secret-change-in-production"],

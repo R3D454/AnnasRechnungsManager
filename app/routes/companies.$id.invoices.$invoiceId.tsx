@@ -1,11 +1,11 @@
 import { Link, useLoaderData, useNavigate, useRevalidator } from "react-router";
 
 export const handle = {
-  breadcrumbs: (data: { invoice: { companyId: string; number: string; company: { name: string } } }) => [
+  breadcrumbs: (data: { invoice: { companyId: string; number: string | null; company: { name: string } } }) => [
     { label: "Mandanten", href: "/companies" },
     { label: data.invoice.company.name, href: `/companies/${data.invoice.companyId}` },
     { label: "Rechnungen", href: `/companies/${data.invoice.companyId}/invoices` },
-    { label: data.invoice.number },
+    { label: data.invoice.number ?? "-" },
   ],
 };
 import { requireUser } from "@/session.server";
@@ -15,7 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { InvoiceStatusBadge } from "@/components/invoice/invoice-status-badge";
 import { formatCurrency, formatDate } from "@/lib/tax";
-import { ChevronLeft, Download, CheckCircle, Send, Trash2, RotateCcw } from "lucide-react";
+import { ChevronLeft, Download, CheckCircle, Send, Trash2, RotateCcw, Pencil } from "lucide-react";
 import type { InvoiceStatus } from "@prisma/client";
 
 export async function loader({
@@ -63,6 +63,17 @@ export async function loader({
   };
 }
 
+/**
+ * InvoiceDetailPage
+ *
+ * This page displays the details of a single invoice, including the customer, items, and totals.
+ * It also allows the user to download the invoice as a PDF and to update the status of the invoice.
+ *
+ * The page will only be accessible if the user is logged in and has the necessary permissions.
+ * The page will automatically revalidate when the user updates the status of the invoice.
+ *
+ * @returns {JSX.Element} The JSX element representing the InvoiceDetailPage.
+ */
 export default function InvoiceDetailPage() {
   const { invoice, isAdmin } = useLoaderData<typeof loader>();
   const navigate = useNavigate();
@@ -81,6 +92,15 @@ export default function InvoiceDetailPage() {
     {} as Record<number, { net: number; tax: number }>
   );
 
+  /**
+   * Updates the status of an invoice.
+   *
+   * This function sends a PATCH request to the API to update the status of the invoice.
+   * It sets the loading state to true before sending the request and to false after the request is finished.
+   * It also revalidates the page after the request is finished, so the user is shown the updated status.
+   *
+   * @param {InvoiceStatus} status The new status of the invoice.
+   */
   async function updateStatus(status: InvoiceStatus) {
     setLoading(true);
     await fetch(`/api/invoices/${invoice.id}`, {
@@ -92,6 +112,13 @@ export default function InvoiceDetailPage() {
     revalidate();
   }
 
+  /**
+   * Soft deletes an invoice.
+   *
+   * This function shows a confirmation dialog to the user and if the user confirms, it sends a PATCH request to the API to update the status of the invoice to "DELETED".
+   * It sets the loading state to true before sending the request and to false after the request is finished.
+   * It also revalidates the page after the request is finished, so the user is shown the updated status.
+   */
   async function handleSoftDelete() {
     if (!confirm("Rechnung in den Papierkorb verschieben?")) return;
     setLoading(true);
@@ -104,23 +131,43 @@ export default function InvoiceDetailPage() {
     revalidate();
   }
 
+  /**
+   * Restores an invoice to the "DRAFT" status.
+   *
+   * This function sends a PATCH request to the API to update the status of the invoice to "DRAFT".
+   * It sets the loading state to true before sending the request and to false after the request is finished.
+   * It also revalidates the page after the request is finished, so the user is shown the updated status.
+   */
   async function handleRestore() {
     setLoading(true);
     await fetch(`/api/invoices/${invoice.id}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "CANCELLED" }),
+      body: JSON.stringify({ status: "DRAFT" }),
     });
     setLoading(false);
     revalidate();
   }
 
+  /**
+   * Hard deletes an invoice.
+   *
+   * This function shows a confirmation dialog to the user and if the user confirms, it sends a DELETE request to the API to delete the invoice.
+   * It then navigates to the invoice list page.
+   */
   async function handleHardDelete() {
     if (!confirm("Rechnung endgültig löschen? Dies kann nicht rückgängig gemacht werden.")) return;
     await fetch(`/api/invoices/${invoice.id}`, { method: "DELETE" });
     navigate(`/companies/${id}/invoices`);
   }
 
+/**
+ * Downloads the invoice as a PDF file.
+ *
+ * This function sends a GET request to the API to get the PDF file.
+ * It then creates a blob URL from the response and creates a new anchor element with the blob URL and a download attribute with the filename.
+ * It then simulates a click event on the anchor element, so the user is prompted to download the PDF file.
+ */
   async function downloadPdf() {
     const res = await fetch(`/api/invoices/${invoice.id}/pdf`);
     if (!res.ok) return;
@@ -128,7 +175,7 @@ export default function InvoiceDetailPage() {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `rechnung-${invoice.number}.pdf`;
+    a.download = `rechnung-${invoice.number ?? invoice.id}.pdf`;
     a.click();
     URL.revokeObjectURL(url);
   }
@@ -145,7 +192,7 @@ export default function InvoiceDetailPage() {
       <div className="flex items-start justify-between mb-8">
         <div>
           <div className="flex items-center gap-3 mb-1">
-            <h1 className="text-2xl font-bold text-gray-900">{invoice.number}</h1>
+            <h1 className="text-2xl font-bold text-gray-900">{invoice.number ?? "-"}</h1>
             <InvoiceStatusBadge status={invoice.status} />
           </div>
           <p className="text-gray-500">
@@ -158,6 +205,13 @@ export default function InvoiceDetailPage() {
           {invoice.status !== "DELETED" && (
             <Button variant="outline" size="sm" onClick={downloadPdf}>
               <Download className="h-4 w-4" /> PDF
+            </Button>
+          )}
+          {invoice.status === "DRAFT" && (
+            <Button variant="outline" size="sm" asChild>
+              <Link to={`/companies/${id}/invoices/${invoice.id}/edit`}>
+                <Pencil className="h-4 w-4" /> Bearbeiten
+              </Link>
             </Button>
           )}
           {invoice.status === "DRAFT" && (

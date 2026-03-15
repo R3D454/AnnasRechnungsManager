@@ -3,7 +3,8 @@ import { login, createUserSession, getUserSession } from "@/session.server";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Calculator, AlertCircle } from "lucide-react";
+import { Calculator, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { useState } from "react";
 
 export async function loader({ request }: { request: Request }) {
   const { userId } = await getUserSession(request);
@@ -26,6 +27,7 @@ export default function LoginPage() {
   const actionData = useActionData<typeof action>();
   const navigation = useNavigation();
   const loading = navigation.state === "submitting";
+  const [showPassword, setShowPassword] = useState(false);
 
   return (
     <div className="min-h-screen flex">
@@ -109,13 +111,25 @@ export default function LoginPage() {
 
               <div className="space-y-1.5">
                 <Label htmlFor="password">Passwort</Label>
-                <Input
-                  id="password"
-                  name="password"
-                  type="password"
-                  required
-                  autoComplete="current-password"
-                />
+                <div className="relative">
+                  <Input
+                    id="password"
+                    name="password"
+                    type={showPassword ? "text" : "password"}
+                    required
+                    autoComplete="current-password"
+                    className="pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((v) => !v)}
+                    className="absolute inset-y-0 right-0 flex items-center pr-3 text-slate-400 hover:text-slate-600"
+                    tabIndex={-1}
+                    aria-label={showPassword ? "Passwort verbergen" : "Passwort anzeigen"}
+                  >
+                    {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                  </button>
+                </div>
               </div>
 
               <Button type="submit" className="w-full h-10 mt-2" disabled={loading}>

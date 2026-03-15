@@ -1,4 +1,4 @@
-import { Link, useLoaderData } from "react-router";
+import { Link, useLoaderData, useRevalidator } from "react-router";
 
 export const handle = {
   breadcrumbs: (data: { company: { id: string; name: string } }) => [
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { InvoiceStatusBadge } from "@/components/invoice/invoice-status-badge";
 import { formatCurrency, formatDate } from "@/lib/tax";
-import { Plus, FileText, ChevronLeft, ChevronDown, ChevronRight, Trash2 } from "lucide-react";
+import { Plus, FileText, ChevronLeft, ChevronDown, ChevronRight, Trash2, X } from "lucide-react";
 import { useState } from "react";
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
@@ -38,6 +38,7 @@ export async function loader({ request, params }: { request: Request; params: { 
       grossTotal: Number(inv.grossTotal),
       issueDate: inv.issueDate.toISOString(),
       dueDate: inv.dueDate.toISOString(),
+      deletedAt: inv.deletedAt?.toISOString() ?? null,
     })),
   };
 }
@@ -65,7 +66,7 @@ function InvoiceRow({ invoice, companyId }: { invoice: InvoiceRow; companyId: st
           <FileText className="h-3.5 w-3.5 text-slate-400 group-hover:text-indigo-500 transition-colors" />
         </div>
         <div>
-          <p className="font-medium text-slate-800 text-sm">{invoice.number}</p>
+          <p className="font-medium text-slate-800 text-sm">{invoice.number ?? "-"}</p>
           <p className="text-xs text-slate-400">{invoice.customer.name}</p>
         </div>
       </div>
@@ -126,6 +127,47 @@ function YearPanel({
   );
 }
 
+function DeletedInvoiceRow({ invoice, companyId }: { invoice: InvoiceRow; companyId: string }) {
+  const revalidator = useRevalidator();
+
+  async function handleDelete(e: React.MouseEvent) {
+    e.preventDefault();
+    if (!window.confirm(`Rechnung ${invoice.number ?? "-"} endgültig löschen? Dies kann nicht rückgängig gemacht werden.`)) return;
+    await fetch(`/api/invoices/${invoice.id}`, { method: "DELETE" });
+    revalidator.revalidate();
+  }
+
+  return (
+    <div className="flex items-center justify-between px-5 py-3.5 hover:bg-red-50/30 transition-colors group">
+      <Link
+        to={`/companies/${companyId}/invoices/${invoice.id}`}
+        className="flex items-center gap-4 flex-1 min-w-0"
+      >
+        <div className="p-1.5 rounded-lg bg-red-50">
+          <FileText className="h-3.5 w-3.5 text-red-300" />
+        </div>
+        <div className="min-w-0">
+          <p className="font-medium text-slate-500 text-sm">{invoice.number ?? "-"}</p>
+          <p className="text-xs text-slate-400">{invoice.customer.name}</p>
+        </div>
+      </Link>
+      <div className="flex items-center gap-4">
+        <p className="text-sm text-slate-400 hidden sm:block">{formatDate(invoice.issueDate)}</p>
+        <p className="font-medium text-slate-400 w-24 text-right text-sm">
+          {formatCurrency(invoice.grossTotal)}
+        </p>
+        <button
+          onClick={handleDelete}
+          className="p-1.5 rounded text-red-300 hover:text-red-600 hover:bg-red-100 transition-colors"
+          title="Endgültig löschen"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function DeletedPanel({
   invoices,
   companyId,
@@ -159,7 +201,7 @@ function DeletedPanel({
       {open && (
         <div className="divide-y divide-red-50 border-t border-red-100">
           {invoices.map((invoice) => (
-            <InvoiceRow key={invoice.id} invoice={invoice} companyId={companyId} />
+            <DeletedInvoiceRow key={invoice.id} invoice={invoice} companyId={companyId} />
           ))}
         </div>
       )}

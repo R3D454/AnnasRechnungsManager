@@ -319,7 +319,7 @@ export default function CompaniesPage() {
                       className="flex items-center justify-between py-2.5 hover:bg-slate-50 -mx-1 px-1 rounded-lg transition-colors"
                     >
                       <div className="min-w-0">
-                        <p className="text-sm font-medium text-slate-900">{invoice.number}</p>
+                        <p className="text-sm font-medium text-slate-900">{invoice.number ?? "-"}</p>
                         <p className="text-xs text-slate-400 truncate">
                           {invoice.customer.name} · {formatDate(invoice.issueDate)}
                         </p>

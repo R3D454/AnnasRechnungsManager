@@ -28,7 +28,7 @@ export async function loader({ request, params }: { request: Request; params: { 
     status: 200,
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="rechnung-${invoice.number}.pdf"`,
+      "Content-Disposition": `attachment; filename="rechnung-${invoice.number ?? invoice.id}.pdf"`,
     },
   });
 }
