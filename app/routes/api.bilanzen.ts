@@ -64,26 +64,47 @@ export async function loader({ request }: { request: Request }) {
   const summeAktiva = forderungen + bank;
 
   // Betriebsausgaben für das Jahr
-  const ausgabenAgg = await prisma.betriebsausgabe.aggregate({
+  const ausgaben = await prisma.betriebsausgabe.findMany({
     where: { companyId, datum: { gte: yearStart, lt: yearEnd } },
-    _sum: { betrag: true },
-    _count: true,
   });
 
-  const ausgabenByKategorie = await prisma.betriebsausgabe.groupBy({
-    by: ["kategorie"],
-    where: { companyId, datum: { gte: yearStart, lt: yearEnd } },
-    _sum: { betrag: true },
-  });
+  const ausgabenGesamt = ausgaben.reduce((s, a) => s + Number(a.betrag), 0);
+  const ausgabenVorsteuer = ausgaben.reduce((s, a) => {
+    const brutto = Number(a.betrag);
+    const rate = Number(a.steuersatz) / 100;
+    return s + (rate > 0 ? Math.round((brutto / (1 + rate)) * rate * 100) / 100 : 0);
+  }, 0);
 
-  const ausgabenGesamt = Number(ausgabenAgg._sum.betrag ?? 0);
+  // Ausgaben nach Kategorie
+  const ausgabenByKategorieMap: Record<string, number> = {};
+  for (const a of ausgaben) {
+    const k = a.kategorie;
+    ausgabenByKategorieMap[k] = (ausgabenByKategorieMap[k] ?? 0) + Number(a.betrag);
+  }
+  const ausgabenByKategorie = Object.entries(ausgabenByKategorieMap).map(([kategorie, betrag]) => ({ kategorie, betrag }));
 
   // Sonstige Einnahmen für das Jahr
-  const einnahmenAgg = await prisma.betriebseinnahme.aggregate({
+  const einnahmen = await prisma.betriebseinnahme.findMany({
     where: { companyId, datum: { gte: yearStart, lt: yearEnd } },
-    _sum: { betrag: true },
   });
-  const sonstigeEinnahmen = Number(einnahmenAgg._sum.betrag ?? 0);
+  const sonstigeEinnahmen = einnahmen.reduce((s, e) => s + Number(e.betrag), 0);
+  const einnahmenUst = einnahmen.reduce((s, e) => {
+    const brutto = Number(e.betrag);
+    const rate = Number(e.steuersatz) / 100;
+    return s + (rate > 0 ? Math.round((brutto / (1 + rate)) * rate * 100) / 100 : 0);
+  }, 0);
+
+  // Kasse / Bank aus sonstigen Einnahmen und Ausgaben (nach Zahlungsart)
+  const einnahmenKasse = einnahmen.filter((e) => e.zahlungsart === "KASSE").reduce((s, e) => s + Number(e.betrag), 0);
+  const ausgabenKasse = ausgaben.filter((a) => a.zahlungsart === "KASSE").reduce((s, a) => s + Number(a.betrag), 0);
+  const einnahmenBank = einnahmen.filter((e) => e.zahlungsart === "BANK").reduce((s, e) => s + Number(e.betrag), 0);
+  const ausgabenBank = ausgaben.filter((a) => a.zahlungsart === "BANK").reduce((s, a) => s + Number(a.betrag), 0);
+
+  // Kasse-Saldo = bezahlte Rechnungen (Kasse-Anteil wird nicht getrennt) + sonstige Einnahmen Kasse - Ausgaben Kasse
+  // Bank-Näherung = bezahlte Rechnungen + sonstige Einnahmen Bank - Ausgaben Bank
+  const kasseNetto = einnahmenKasse - ausgabenKasse;
+  const bankNetto = bank + einnahmenBank - ausgabenBank;
+  const summeAktivaErweitert = forderungen + Math.max(0, bankNetto) + Math.max(0, kasseNetto);
 
   const jahresergebnis = guvNetto + sonstigeEinnahmen - ausgabenGesamt;
 
@@ -97,22 +118,22 @@ export async function loader({ request }: { request: Request }) {
       grossTotal: guvBrutto,
       invoiceCount: guvInvoices.length,
       ausgabenGesamt,
-      ausgabenByKategorie: ausgabenByKategorie.map((a) => ({
-        kategorie: a.kategorie,
-        betrag: Number(a._sum.betrag ?? 0),
-      })),
+      ausgabenVorsteuer,
+      ausgabenByKategorie,
       sonstigeEinnahmen,
+      einnahmenUst,
       jahresergebnis,
     },
     bilanz: {
       aktiva: {
         forderungen: { betrag: forderungen, anzahl: forderungenAgg._count },
-        bank: { betrag: bank, anzahl: bankAgg._count },
-        summe: summeAktiva,
+        bank: { betrag: Math.max(0, bankNetto), anzahl: bankAgg._count },
+        kasse: { betrag: Math.max(0, kasseNetto) },
+        summe: summeAktivaErweitert,
       },
       passiva: {
-        eigenkapital: summeAktiva,
-        summe: summeAktiva,
+        eigenkapital: summeAktivaErweitert,
+        summe: summeAktivaErweitert,
       },
     },
   });

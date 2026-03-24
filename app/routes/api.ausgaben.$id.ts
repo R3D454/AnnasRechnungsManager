@@ -6,6 +6,8 @@ import { AusgabeKategorie } from "@prisma/client";
 const updateSchema = z.object({
   kategorie: z.nativeEnum(AusgabeKategorie),
   betrag: z.number().positive(),
+  steuersatz: z.number().min(0).default(0),
+  zahlungsart: z.enum(["KASSE", "BANK"]).default("BANK"),
   datum: z.string().min(1),
   beschreibung: z.string().optional(),
 });
@@ -33,10 +35,17 @@ export async function action({ request, params }: { request: Request; params: { 
     data: {
       kategorie: parsed.data.kategorie,
       betrag: parsed.data.betrag,
+      steuersatz: parsed.data.steuersatz,
+      zahlungsart: parsed.data.zahlungsart,
       datum: new Date(parsed.data.datum),
       beschreibung: parsed.data.beschreibung,
     },
   });
 
-  return Response.json({ ...updated, betrag: Number(updated.betrag), datum: updated.datum.toISOString() });
+  return Response.json({
+    ...updated,
+    betrag: Number(updated.betrag),
+    steuersatz: Number(updated.steuersatz),
+    datum: updated.datum.toISOString(),
+  });
 }

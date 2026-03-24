@@ -1,4 +1,4 @@
-import { startCleanupScheduler } from "@/lib/cleanup.server";
+import { startCleanupScheduler } from "./lib/cleanup.server";
 import { PassThrough } from "node:stream";
 import type { AppLoadContext, EntryContext } from "react-router";
 import { createReadableStreamFromReadable } from "@react-router/node";

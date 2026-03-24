@@ -1,18 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Link, useLoaderData, useRevalidator } from "react-router";
 import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { ChevronLeft, Plus, Edit, Trash2, Layers } from "lucide-react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { z } from "zod";
-import { formatCurrency, formatDate } from "@/lib/tax";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { ChevronLeft, Plus, Pencil, Trash2, Loader2 } from "lucide-react";
+import { formatCurrency } from "@/lib/tax";
+import { afaFuerJahr, buchwert, assetStatus, type AnlagegutRaw } from "@/lib/afa";
 
 export const handle = {
   breadcrumbs: (data: { companyId: string; companyName: string }) => [
@@ -21,17 +22,6 @@ export const handle = {
     { label: "Anlagevermögen" },
   ],
 };
-
-const schema = z.object({
-  bezeichnung: z.string().min(1, "Pflichtfeld"),
-  anschaffungsdatum: z.string().min(1, "Pflichtfeld"),
-  anschaffungskosten: z.coerce.number({ invalid_type_error: "Ungültiger Betrag" }).positive("Betrag muss größer 0 sein"),
-  nutzungsdauerJahre: z.coerce.number().int().min(1, "Mindestens 1 Jahr"),
-  restwert: z.coerce.number().min(0).default(0),
-  beschreibung: z.string().optional(),
-  aktiv: z.boolean().default(true),
-});
-type FormData = z.infer<typeof schema>;
 
 interface Asset {
   id: string;
@@ -42,10 +32,45 @@ interface Asset {
   nutzungsdauerJahre: number;
   restwert: number;
   aktiv: boolean;
-  afaJahr: number;
-  buchwert: number;
-  status: "aktiv" | "vollständig abgeschrieben" | "inaktiv";
 }
+
+interface AssetWithAfa extends Asset {
+  afaJahr: number;
+  buchwertJahr: number;
+  statusLabel: string;
+}
+
+function enrichAsset(a: Asset, year: number): AssetWithAfa {
+  const raw: AnlagegutRaw = {
+    anschaffungskosten: a.anschaffungskosten,
+    nutzungsdauerJahre: a.nutzungsdauerJahre,
+    restwert: a.restwert,
+    anschaffungsdatum: a.anschaffungsdatum,
+    aktiv: a.aktiv,
+  };
+  return {
+    ...a,
+    afaJahr: afaFuerJahr(raw, year),
+    buchwertJahr: buchwert(raw, year),
+    statusLabel: assetStatus(raw, year),
+  };
+}
+
+const STATUS_VARIANTS: Record<string, "success" | "secondary" | "outline"> = {
+  aktiv: "success",
+  "vollständig abgeschrieben": "secondary",
+  inaktiv: "outline",
+};
+
+const emptyForm = {
+  bezeichnung: "",
+  anschaffungsdatum: "",
+  anschaffungskosten: "",
+  nutzungsdauerJahre: "",
+  restwert: "0",
+  beschreibung: "",
+  aktiv: true,
+};
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
   const user = await requireUser(request);
@@ -54,136 +79,138 @@ export async function loader({ request, params }: { request: Request; params: { 
     select: { id: true, name: true },
   });
   if (!company) throw new Response("Not Found", { status: 404 });
-  return { companyId: company.id, companyName: company.name };
-}
 
-function AnlagegutForm({
-  defaultValues,
-  onSubmit,
-  submitLabel,
-}: {
-  defaultValues?: Partial<FormData>;
-  onSubmit: (d: FormData) => Promise<void>;
-  submitLabel: string;
-}) {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<FormData>({
-    resolver: zodResolver(schema),
-    defaultValues: {
-      aktiv: true,
-      restwert: 0,
-      anschaffungsdatum: new Date().toISOString().slice(0, 10),
-      ...defaultValues,
-    },
+  const assets = await prisma.anlagegut.findMany({
+    where: { companyId: params.id },
+    orderBy: { anschaffungsdatum: "asc" },
   });
 
-  return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
-      <div className="space-y-1.5">
-        <Label>Bezeichnung *</Label>
-        <Input {...register("bezeichnung")} placeholder="z.B. Laptop, Firmenwagen, Maschine" />
-        {errors.bezeichnung && <p className="text-xs text-red-600">{errors.bezeichnung.message}</p>}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label>Anschaffungsdatum *</Label>
-          <Input {...register("anschaffungsdatum")} type="date" />
-          {errors.anschaffungsdatum && <p className="text-xs text-red-600">{errors.anschaffungsdatum.message}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <Label>Nutzungsdauer (Jahre) *</Label>
-          <Input {...register("nutzungsdauerJahre")} type="number" min="1" step="1" placeholder="z.B. 5" />
-          {errors.nutzungsdauerJahre && <p className="text-xs text-red-600">{errors.nutzungsdauerJahre.message}</p>}
-        </div>
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-1.5">
-          <Label>Anschaffungskosten (€) *</Label>
-          <Input {...register("anschaffungskosten")} type="number" step="0.01" placeholder="0.00" />
-          {errors.anschaffungskosten && <p className="text-xs text-red-600">{errors.anschaffungskosten.message}</p>}
-        </div>
-        <div className="space-y-1.5">
-          <Label>Restwert (€)</Label>
-          <Input {...register("restwert")} type="number" step="0.01" min="0" placeholder="0.00" />
-          {errors.restwert && <p className="text-xs text-red-600">{errors.restwert.message}</p>}
-        </div>
-      </div>
-      <div className="space-y-1.5">
-        <Label>Beschreibung</Label>
-        <Textarea {...register("beschreibung")} placeholder="Optionale Anmerkung" rows={2} />
-      </div>
-      <div className="flex items-center gap-2">
-        <input {...register("aktiv")} type="checkbox" id="aktiv" className="rounded border-gray-300" />
-        <Label htmlFor="aktiv">Aktiv (noch im Betrieb)</Label>
-      </div>
-      <div className="flex justify-end pt-2">
-        <Button type="submit" disabled={isSubmitting}>
-          {isSubmitting ? "Speichern..." : submitLabel}
-        </Button>
-      </div>
-    </form>
-  );
+  return {
+    companyId: company.id,
+    companyName: company.name,
+    initialYear: new Date().getFullYear(),
+    assets: assets.map((a) => ({
+      id: a.id,
+      bezeichnung: a.bezeichnung,
+      beschreibung: a.beschreibung,
+      anschaffungsdatum: a.anschaffungsdatum.toISOString(),
+      anschaffungskosten: Number(a.anschaffungskosten),
+      nutzungsdauerJahre: a.nutzungsdauerJahre,
+      restwert: Number(a.restwert),
+      aktiv: a.aktiv,
+    })),
+  };
 }
 
-const statusConfig = {
-  "aktiv": { label: "aktiv", className: "bg-green-100 text-green-700" },
-  "vollständig abgeschrieben": { label: "abgeschrieben", className: "bg-gray-100 text-gray-500" },
-  "inaktiv": { label: "inaktiv", className: "bg-amber-100 text-amber-700" },
-};
-
 export default function AnlagevermoegenPage() {
-  const { companyId, companyName } = useLoaderData<typeof loader>();
+  const { assets: initialAssets, companyId, companyName, initialYear } =
+    useLoaderData<typeof loader>();
   const { revalidate } = useRevalidator();
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [assets, setAssets] = useState<Asset[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [open, setOpen] = useState(false);
-  const [editAsset, setEditAsset] = useState<Asset | null>(null);
 
-  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() - i);
+  const [year, setYear] = useState(initialYear);
+  const [assets, setAssets] = useState<Asset[]>(initialAssets);
+  const [loadingYear, setLoadingYear] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
-  async function fetchAssets(y = year) {
-    setLoading(true);
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingAsset, setEditingAsset] = useState<Asset | null>(null);
+  const [form, setForm] = useState(emptyForm);
+
+  const years = Array.from({ length: 10 }, (_, i) => new Date().getFullYear() + 2 - i);
+
+  async function loadYear(y: number) {
+    setYear(y);
+    setLoadingYear(true);
     const res = await fetch(`/api/anlagevermoegen?companyId=${companyId}&year=${y}`);
     const data = await res.json();
-    setAssets(data.assets ?? []);
-    setLoading(false);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    setAssets(data.assets.map((a: any) => ({
+      id: a.id,
+      bezeichnung: a.bezeichnung,
+      beschreibung: a.beschreibung,
+      anschaffungsdatum: a.anschaffungsdatum,
+      anschaffungskosten: a.anschaffungskosten,
+      nutzungsdauerJahre: a.nutzungsdauerJahre,
+      restwert: a.restwert,
+      aktiv: a.aktiv,
+    })));
+    setLoadingYear(false);
   }
 
-  useEffect(() => { fetchAssets(); }, [companyId, year]);
-
-  async function handleCreate(data: FormData) {
-    await fetch("/api/anlagevermoegen", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ ...data, companyId }),
-    });
-    setOpen(false);
-    fetchAssets();
-    revalidate();
+  function openCreate() {
+    setEditingAsset(null);
+    setForm(emptyForm);
+    setDialogOpen(true);
   }
 
-  async function handleEdit(data: FormData) {
-    if (!editAsset) return;
-    await fetch(`/api/anlagevermoegen/${editAsset.id}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(data),
+  function openEdit(asset: Asset) {
+    setEditingAsset(asset);
+    setForm({
+      bezeichnung: asset.bezeichnung,
+      anschaffungsdatum: asset.anschaffungsdatum.slice(0, 10),
+      anschaffungskosten: String(asset.anschaffungskosten),
+      nutzungsdauerJahre: String(asset.nutzungsdauerJahre),
+      restwert: String(asset.restwert),
+      beschreibung: asset.beschreibung ?? "",
+      aktiv: asset.aktiv,
     });
-    setEditAsset(null);
-    fetchAssets();
-    revalidate();
+    setDialogOpen(true);
+  }
+
+  async function handleSave() {
+    setSaving(true);
+    const payload = {
+      bezeichnung: form.bezeichnung,
+      anschaffungsdatum: form.anschaffungsdatum,
+      anschaffungskosten: parseFloat(form.anschaffungskosten),
+      nutzungsdauerJahre: parseInt(form.nutzungsdauerJahre),
+      restwert: parseFloat(form.restwert) || 0,
+      beschreibung: form.beschreibung || undefined,
+      aktiv: form.aktiv,
+    };
+
+    try {
+      if (editingAsset) {
+        await fetch(`/api/anlagevermoegen/${editingAsset.id}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        await fetch("/api/anlagevermoegen", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, companyId }),
+        });
+      }
+      setDialogOpen(false);
+      await loadYear(year);
+      revalidate();
+    } finally {
+      setSaving(false);
+    }
   }
 
   async function handleDelete(id: string) {
     if (!confirm("Anlagegut wirklich löschen?")) return;
+    setDeleting(id);
     await fetch(`/api/anlagevermoegen/${id}`, { method: "DELETE" });
-    fetchAssets();
+    setDeleting(null);
+    await loadYear(year);
     revalidate();
   }
 
-  const totalAK = assets.reduce((s, a) => s + a.anschaffungskosten, 0);
-  const totalBW = assets.filter((a) => a.aktiv).reduce((s, a) => s + a.buchwert, 0);
-  const totalAfa = assets.reduce((s, a) => s + a.afaJahr, 0);
+  const enriched = assets.map((a) => enrichAsset(a, year));
+  const aktiveAnlagen = enriched.filter((a) => a.aktiv && a.statusLabel === "aktiv").length;
+  const gesamtAfa = enriched.reduce((s, a) => s + a.afaJahr, 0);
+  const gesamtBuchwert = enriched.reduce((s, a) => s + a.buchwertJahr, 0);
+
+  const formValid =
+    form.bezeichnung.trim().length > 0 &&
+    form.anschaffungsdatum.length > 0 &&
+    parseFloat(form.anschaffungskosten) > 0 &&
+    parseInt(form.nutzungsdauerJahre) >= 1;
 
   return (
     <div>
@@ -197,29 +224,26 @@ export default function AnlagevermoegenPage() {
       <div className="flex items-center justify-between mb-8">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Anlagevermögen</h1>
-          <p className="text-gray-500 mt-1">{companyName} · Lineare Abschreibung (AfA)</p>
+          <p className="text-gray-500 mt-1">
+            {companyName} · {year}
+          </p>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={year}
-            onChange={(e) => setYear(Number(e.target.value))}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-amber-500"
+            onChange={(e) => loadYear(Number(e.target.value))}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
           >
-            {years.map((y) => <option key={y} value={y}>{y}</option>)}
+            {years.map((y) => (
+              <option key={y} value={y}>
+                {y}
+              </option>
+            ))}
           </select>
-          <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild>
-              <Button className="bg-amber-600 hover:bg-amber-700">
-                <Plus className="h-4 w-4" /> Anlagegut anlegen
-              </Button>
-            </DialogTrigger>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Neues Anlagegut</DialogTitle>
-              </DialogHeader>
-              <AnlagegutForm onSubmit={handleCreate} submitLabel="Anlegen" />
-            </DialogContent>
-          </Dialog>
+          <Button onClick={openCreate}>
+            <Plus className="h-4 w-4" />
+            Neues Anlagegut
+          </Button>
         </div>
       </div>
 
@@ -227,140 +251,306 @@ export default function AnlagevermoegenPage() {
       <div className="grid grid-cols-3 gap-4 mb-6">
         <Card>
           <CardContent className="pt-5 pb-5">
-            <p className="text-xs text-gray-500 mb-1">Anschaffungskosten gesamt</p>
-            <p className="text-xl font-bold text-gray-900">{formatCurrency(totalAK)}</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-5 pb-5">
-            <p className="text-xs text-gray-500 mb-1">Buchwert gesamt ({year})</p>
-            <p className="text-xl font-bold text-amber-600">{formatCurrency(totalBW)}</p>
+            <p className="text-xs text-gray-500 mb-1">Aktive Anlagen</p>
+            <p className="text-xl font-bold text-gray-900">{aktiveAnlagen}</p>
           </CardContent>
         </Card>
         <Card>
           <CardContent className="pt-5 pb-5">
             <p className="text-xs text-gray-500 mb-1">AfA gesamt {year}</p>
-            <p className="text-xl font-bold text-gray-900">{formatCurrency(totalAfa)}</p>
+            <p className="text-xl font-bold text-rose-600">{formatCurrency(gesamtAfa)}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-5 pb-5">
+            <p className="text-xs text-gray-500 mb-1">Gesamter Buchwert</p>
+            <p className="text-xl font-bold text-indigo-600">{formatCurrency(gesamtBuchwert)}</p>
           </CardContent>
         </Card>
       </div>
 
-      {/* Edit Dialog */}
-      <Dialog open={!!editAsset} onOpenChange={(o) => !o && setEditAsset(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Anlagegut bearbeiten</DialogTitle>
-          </DialogHeader>
-          {editAsset && (
-            <AnlagegutForm
-              defaultValues={{
-                bezeichnung: editAsset.bezeichnung,
-                anschaffungsdatum: editAsset.anschaffungsdatum.slice(0, 10),
-                anschaffungskosten: editAsset.anschaffungskosten,
-                nutzungsdauerJahre: editAsset.nutzungsdauerJahre,
-                restwert: editAsset.restwert,
-                beschreibung: editAsset.beschreibung ?? undefined,
-                aktiv: editAsset.aktiv,
-              }}
-              onSubmit={handleEdit}
-              submitLabel="Speichern"
-            />
-          )}
-        </DialogContent>
-      </Dialog>
-
-      {loading ? (
-        <div className="text-center text-gray-500 py-12">Lade Anlagevermögen...</div>
-      ) : assets.length === 0 ? (
+      {/* Tabelle */}
+      {loadingYear ? (
+        <div className="flex items-center justify-center py-16 text-gray-400">
+          <Loader2 className="h-6 w-6 animate-spin mr-2" />
+          Lade Anlagen...
+        </div>
+      ) : enriched.length === 0 ? (
         <Card>
-          <CardContent className="py-12 text-center">
-            <Layers className="h-10 w-10 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500 text-sm">Noch keine Anlagegüter erfasst</p>
-            <Button variant="outline" size="sm" className="mt-4" onClick={() => setOpen(true)}>
-              <Plus className="h-4 w-4" /> Erstes Anlagegut anlegen
+          <CardContent className="py-16 text-center text-gray-400">
+            <p className="text-sm">Noch keine Anlagegüter erfasst.</p>
+            <Button variant="outline" className="mt-4" onClick={openCreate}>
+              <Plus className="h-4 w-4" />
+              Erstes Anlagegut hinzufügen
             </Button>
           </CardContent>
         </Card>
       ) : (
         <Card>
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm border-collapse">
               <thead>
-                <tr className="border-b border-slate-100 text-xs font-medium text-slate-500 uppercase tracking-wide">
-                  <th className="px-4 py-3 text-left">Bezeichnung</th>
-                  <th className="px-4 py-3 text-left">Anschaffung</th>
-                  <th className="px-4 py-3 text-right">Anschaffungskosten</th>
-                  <th className="px-4 py-3 text-right">Nutzungsdauer</th>
-                  <th className="px-4 py-3 text-right">AfA {year}</th>
-                  <th className="px-4 py-3 text-right">Buchwert {year}</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3"></th>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Bezeichnung
+                  </th>
+                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Anschaffung
+                  </th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    AK
+                  </th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    ND (J)
+                  </th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    AfA {year}
+                  </th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Buchwert 31.12.{year}
+                  </th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    Status
+                  </th>
+                  <th className="px-3 py-2.5 w-16" />
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {assets.map((asset) => {
-                  const s = statusConfig[asset.status];
-                  return (
-                    <tr key={asset.id} className="hover:bg-slate-50 transition-colors">
-                      <td className="px-4 py-3">
-                        <p className="font-medium text-slate-800">{asset.bezeichnung}</p>
-                        {asset.beschreibung && (
-                          <p className="text-xs text-slate-400 truncate max-w-xs">{asset.beschreibung}</p>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-slate-600 whitespace-nowrap">
-                        {formatDate(asset.anschaffungsdatum)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-800">
-                        {formatCurrency(asset.anschaffungskosten)}
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-600">
-                        {asset.nutzungsdauerJahre} J.
-                      </td>
-                      <td className="px-4 py-3 text-right text-slate-800">
-                        {asset.afaJahr > 0 ? formatCurrency(asset.afaJahr) : "—"}
-                      </td>
-                      <td className="px-4 py-3 text-right font-medium text-amber-700">
-                        {formatCurrency(asset.buchwert)}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${s.className}`}>
-                          {s.label}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex justify-end gap-1">
-                          <Button variant="ghost" size="icon" onClick={() => setEditAsset(asset)}>
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="text-red-500 hover:text-red-700 hover:bg-red-50"
-                            onClick={() => handleDelete(asset.id)}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                {enriched.map((asset) => (
+                  <tr key={asset.id} className="hover:bg-slate-50/60 group">
+                    <td className="px-4 py-2.5">
+                      <p className="font-medium text-slate-800">{asset.bezeichnung}</p>
+                      {asset.beschreibung && (
+                        <p className="text-xs text-slate-400 truncate max-w-xs">
+                          {asset.beschreibung}
+                        </p>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-slate-600 whitespace-nowrap">
+                      {new Date(asset.anschaffungsdatum).toLocaleDateString("de-DE")}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-slate-700 font-medium whitespace-nowrap">
+                      {formatCurrency(asset.anschaffungskosten)}
+                    </td>
+                    <td className="px-3 py-2.5 text-right text-slate-600">
+                      {asset.nutzungsdauerJahre}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-medium whitespace-nowrap">
+                      {asset.afaJahr > 0 ? (
+                        <span className="text-rose-600">{formatCurrency(asset.afaJahr)}</span>
+                      ) : (
+                        <span className="text-slate-300">—</span>
+                      )}
+                    </td>
+                    <td className="px-3 py-2.5 text-right font-medium text-indigo-700 whitespace-nowrap">
+                      {formatCurrency(asset.buchwertJahr)}
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <Badge variant={STATUS_VARIANTS[asset.statusLabel] ?? "outline"}>
+                        {asset.statusLabel}
+                      </Badge>
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                        <button
+                          onClick={() => openEdit(asset)}
+                          className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+                          title="Bearbeiten"
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(asset.id)}
+                          disabled={deleting === asset.id}
+                          className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600"
+                          title="Löschen"
+                        >
+                          {deleting === asset.id ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <Trash2 className="h-3.5 w-3.5" />
+                          )}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
               <tfoot>
-                <tr className="border-t-2 border-slate-200 bg-slate-50">
-                  <td colSpan={2} className="px-4 py-3 font-semibold text-slate-700">Gesamt</td>
-                  <td className="px-4 py-3 text-right font-bold text-slate-900">{formatCurrency(totalAK)}</td>
-                  <td></td>
-                  <td className="px-4 py-3 text-right font-bold text-slate-900">{formatCurrency(totalAfa)}</td>
-                  <td className="px-4 py-3 text-right font-bold text-amber-700">{formatCurrency(totalBW)}</td>
-                  <td colSpan={2}></td>
+                <tr className="border-t-2 border-slate-300 bg-slate-50">
+                  <td colSpan={4} className="px-4 py-2.5 text-xs font-bold text-slate-700">
+                    Gesamt
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-xs font-bold text-rose-600">
+                    {formatCurrency(gesamtAfa)}
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-xs font-bold text-indigo-700">
+                    {formatCurrency(gesamtBuchwert)}
+                  </td>
+                  <td colSpan={2} />
                 </tr>
               </tfoot>
             </table>
           </div>
+          <div className="px-3 py-2 border-t border-slate-100 text-xs text-slate-400">
+            AfA: lineare Abschreibung nach §7 EStG · Buchwert zum 31.12. des gewählten Jahres
+          </div>
         </Card>
       )}
+
+      {/* Dialog: Anlegen / Bearbeiten */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {editingAsset ? "Anlagegut bearbeiten" : "Neues Anlagegut"}
+            </DialogTitle>
+          </DialogHeader>
+
+          <div className="grid gap-4 py-2">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Bezeichnung <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={form.bezeichnung}
+                onChange={(e) => setForm((f) => ({ ...f, bezeichnung: e.target.value }))}
+                placeholder="z.B. Laptop, Firmenwagen, Maschine"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Anschaffungsdatum <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.anschaffungsdatum}
+                  onChange={(e) => setForm((f) => ({ ...f, anschaffungsdatum: e.target.value }))}
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Nutzungsdauer (Jahre) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  value={form.nutzungsdauerJahre}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, nutzungsdauerJahre: e.target.value }))
+                  }
+                  placeholder="z.B. 3"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Anschaffungskosten (€) <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  value={form.anschaffungskosten}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, anschaffungskosten: e.target.value }))
+                  }
+                  placeholder="0,00"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Restwert (€)
+                </label>
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={form.restwert}
+                  onChange={(e) => setForm((f) => ({ ...f, restwert: e.target.value }))}
+                  placeholder="0,00"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Beschreibung
+              </label>
+              <textarea
+                rows={2}
+                value={form.beschreibung}
+                onChange={(e) => setForm((f) => ({ ...f, beschreibung: e.target.value }))}
+                placeholder="Optionale Notizen"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 resize-none"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="aktiv"
+                checked={form.aktiv}
+                onChange={(e) => setForm((f) => ({ ...f, aktiv: e.target.checked }))}
+                className="rounded"
+              />
+              <label htmlFor="aktiv" className="text-sm text-gray-700">
+                Anlagegut ist aktiv
+              </label>
+            </div>
+
+            {/* AfA-Vorschau */}
+            {formValid && (() => {
+              const raw: AnlagegutRaw = {
+                anschaffungskosten: parseFloat(form.anschaffungskosten),
+                nutzungsdauerJahre: parseInt(form.nutzungsdauerJahre),
+                restwert: parseFloat(form.restwert) || 0,
+                anschaffungsdatum: form.anschaffungsdatum,
+                aktiv: form.aktiv,
+              };
+              const afa = afaFuerJahr(raw, year);
+              const bw = buchwert(raw, year);
+              const jahresAfaVoll =
+                Math.round(
+                  ((raw.anschaffungskosten - raw.restwert) / raw.nutzungsdauerJahre) * 100
+                ) / 100;
+              return (
+                <div className="rounded-lg bg-indigo-50 border border-indigo-100 px-3 py-2 text-xs text-indigo-700 space-y-1">
+                  <p>
+                    <strong>Jährliche AfA:</strong> {formatCurrency(jahresAfaVoll)}
+                  </p>
+                  <p>
+                    <strong>AfA {year}:</strong> {formatCurrency(afa)}
+                  </p>
+                  <p>
+                    <strong>Buchwert 31.12.{year}:</strong> {formatCurrency(bw)}
+                  </p>
+                </div>
+              );
+            })()}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={() => setDialogOpen(false)}>
+              Abbrechen
+            </Button>
+            <Button onClick={handleSave} disabled={saving || !formValid}>
+              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
+              {editingAsset ? "Speichern" : "Hinzufügen"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

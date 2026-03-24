@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/tax";
 import {
   FileText, Users, BarChart3, Plus, Edit, Building2,
-  Mail, Phone, CreditCard, Receipt, Archive, ArchiveRestore, AlertTriangle, Briefcase, Scale, TrendingDown, TrendingUp
+  Mail, Phone, CreditCard, Receipt, Archive, ArchiveRestore, AlertTriangle, Briefcase, Scale, TrendingDown, TrendingUp, PackageSearch, DollarSign
 } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
 import { useState } from "react";
@@ -260,6 +260,26 @@ export default function CompanyPage() {
                 <TrendingUp className="h-4 w-4 text-emerald-600" />
               </div>
               <span className="text-sm font-medium text-gray-700">Einnahmen</span>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to={`/companies/${id}/anlagevermoegen`} className="block">
+          <Card className="hover:border-violet-200 hover:shadow-sm transition-all cursor-pointer">
+            <CardContent className="pt-4 pb-4 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-violet-50">
+                <PackageSearch className="h-4 w-4 text-violet-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Anlagevermögen</span>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to={`/companies/${id}/money`} className="block">
+          <Card className="hover:border-cyan-200 hover:shadow-sm transition-all cursor-pointer">
+            <CardContent className="pt-4 pb-4 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-cyan-50">
+                <DollarSign className="h-4 w-4 text-cyan-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Finanzmittel</span>
             </CardContent>
           </Card>
         </Link>

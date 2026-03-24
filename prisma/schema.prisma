@@ -73,10 +73,38 @@ model Company {
   betriebsausgaben  Betriebsausgabe[]
   betriebseinnahmen Betriebseinnahme[]
   anlagegueter      Anlagegut[]
+  buchungen         Buchung[]
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
 
   @@map("companies")
+}
+
+enum TransactionAccount {
+  KASSE
+  BANK
+}
+
+enum TransactionType {
+  EINLAGE
+  ENTNAHME
+}
+
+model Buchung {
+  id          String             @id @default(cuid())
+  companyId   String
+  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date        DateTime
+  account     TransactionAccount
+  type        TransactionType
+  amount      Decimal            @db.Decimal(10, 2)
+  description String?            @db.Text
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  @@index([companyId])
+  @@index([date])
+  @@map("buchungen")
 }
 
 model Service {
@@ -146,6 +174,11 @@ enum InvoiceStatus {
   DELETED
 }
 
+enum Zahlungsart {
+  KASSE
+  BANK
+}
+
 enum EinnahmeKategorie {
   FUSSPFLEGE
   PRIVATEINLAGEN
@@ -165,6 +198,8 @@ model Betriebseinnahme {
   company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
   kategorie    EinnahmeKategorie
   betrag       Decimal           @db.Decimal(10, 2)
+  steuersatz   Decimal           @db.Decimal(5, 2) @default(0)
+  zahlungsart  Zahlungsart       @default(BANK)
   datum        DateTime
   beschreibung String?           @db.Text
   createdAt    DateTime          @default(now())
@@ -219,6 +254,8 @@ model Betriebsausgabe {
   company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
   kategorie    AusgabeKategorie
   betrag       Decimal          @db.Decimal(10, 2)
+  steuersatz   Decimal          @db.Decimal(5, 2) @default(0)
+  zahlungsart  Zahlungsart      @default(BANK)
   datum        DateTime
   beschreibung String?          @db.Text
   createdAt    DateTime         @default(now())

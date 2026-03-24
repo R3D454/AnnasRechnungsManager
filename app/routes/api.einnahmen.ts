@@ -7,6 +7,8 @@ const createSchema = z.object({
   companyId: z.string().min(1),
   kategorie: z.nativeEnum(EinnahmeKategorie),
   betrag: z.number().positive(),
+  steuersatz: z.number().min(0).default(0),
+  zahlungsart: z.enum(["KASSE", "BANK"]).default("BANK"),
   datum: z.string().min(1),
   beschreibung: z.string().optional(),
 });
@@ -52,6 +54,7 @@ export async function loader({ request }: { request: Request }) {
     einnahmen.map((e) => ({
       ...e,
       betrag: Number(e.betrag),
+      steuersatz: Number(e.steuersatz),
       datum: e.datum.toISOString(),
     }))
   );
@@ -93,13 +96,20 @@ export async function action({ request }: { request: Request }) {
       companyId: parsed.data.companyId,
       kategorie: parsed.data.kategorie,
       betrag: parsed.data.betrag,
+      steuersatz: parsed.data.steuersatz,
+      zahlungsart: parsed.data.zahlungsart,
       datum: new Date(parsed.data.datum),
       beschreibung: parsed.data.beschreibung,
     },
   });
 
   return Response.json(
-    { ...einnahme, betrag: Number(einnahme.betrag), datum: einnahme.datum.toISOString() },
+    {
+      ...einnahme,
+      betrag: Number(einnahme.betrag),
+      steuersatz: Number(einnahme.steuersatz),
+      datum: einnahme.datum.toISOString(),
+    },
     { status: 201 }
   );
 }

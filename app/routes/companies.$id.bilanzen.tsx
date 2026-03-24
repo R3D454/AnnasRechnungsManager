@@ -4,7 +4,7 @@ import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatCurrency } from "@/lib/tax";
-import { ChevronLeft, Scale, TrendingUp, Info } from "lucide-react";
+import { ChevronLeft, Scale, TrendingUp, Info, Banknote, Landmark } from "lucide-react";
 import { KATEGORIE_LABELS } from "@/lib/ausgaben";
 
 export const handle = {
@@ -41,14 +41,17 @@ interface BilanzenData {
     grossTotal: number;
     invoiceCount: number;
     ausgabenGesamt: number;
+    ausgabenVorsteuer: number;
     ausgabenByKategorie: { kategorie: string; betrag: number }[];
     sonstigeEinnahmen: number;
+    einnahmenUst: number;
     jahresergebnis: number;
   };
   bilanz: {
     aktiva: {
       forderungen: { betrag: number; anzahl: number };
       bank: { betrag: number; anzahl: number };
+      kasse: { betrag: number };
       summe: number;
     };
     passiva: {
@@ -187,7 +190,10 @@ export default function BilanzenPage() {
                 {data.guv.sonstigeEinnahmen > 0 && (
                   <div className="mt-4">
                     <p className="text-xs font-semibold uppercase text-gray-400 tracking-wide mb-3">Sonstige Einnahmen</p>
-                    <Row label="Privateinlagen, Erstattungen u.a." value={data.guv.sonstigeEinnahmen} indent />
+                    <Row label="Privateinlagen, Erstattungen u.a. (brutto)" value={data.guv.sonstigeEinnahmen} indent />
+                    {data.guv.einnahmenUst > 0 && (
+                      <Row label="Umsatzsteuer (enthalten)" value={data.guv.einnahmenUst} indent muted />
+                    )}
                     <Row label="Summe Sonstige Einnahmen" value={data.guv.sonstigeEinnahmen} bold />
                   </div>
                 )}
@@ -207,6 +213,9 @@ export default function BilanzenPage() {
                       ))
                   ) : (
                     <Row label="Betriebsausgaben" value={0} indent muted />
+                  )}
+                  {data.guv.ausgabenVorsteuer > 0 && (
+                    <Row label="Vorsteuer (enthalten)" value={data.guv.ausgabenVorsteuer} indent muted />
                   )}
                   <Row label="Summe Aufwendungen" value={data.guv.ausgabenGesamt} bold />
                 </div>
@@ -252,17 +261,26 @@ export default function BilanzenPage() {
                   value={data.bilanz.aktiva.forderungen.betrag}
                   indent
                 />
-                <Row
-                  label={`Bank / Kasse (${data.bilanz.aktiva.bank.anzahl} bezahlt)`}
-                  value={data.bilanz.aktiva.bank.betrag}
-                  indent
-                />
+                <div className="flex justify-between py-2 border-b border-gray-50">
+                  <span className="text-sm ml-4 text-gray-700 flex items-center gap-1.5">
+                    <Landmark className="h-3.5 w-3.5 text-blue-500" />
+                    {`Bank (${data.bilanz.aktiva.bank.anzahl} bezahlte Rechnungen + Einnahmen)`}
+                  </span>
+                  <span className="text-sm tabular-nums text-gray-800">{formatCurrency(data.bilanz.aktiva.bank.betrag)}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-50">
+                  <span className="text-sm ml-4 text-gray-700 flex items-center gap-1.5">
+                    <Banknote className="h-3.5 w-3.5 text-amber-500" />
+                    Kasse (Saldo sonstige Belege)
+                  </span>
+                  <span className="text-sm tabular-nums text-gray-800">{formatCurrency(data.bilanz.aktiva.kasse.betrag)}</span>
+                </div>
                 <Row label="Summe Aktiva" value={data.bilanz.aktiva.summe} bold />
 
                 <div className="mt-4 flex items-start gap-2 p-3 rounded-lg bg-gray-50 border border-gray-100">
                   <Info className="h-4 w-4 text-gray-400 shrink-0 mt-0.5" />
                   <p className="text-xs text-gray-500">
-                    Bank/Kasse ist eine Näherung auf Basis bezahlter Rechnungen (kumuliert bis Jahresende).
+                    Bank enthält bezahlte Rechnungen + sonstige Bankeinnahmen abzgl. Bankausgaben. Kasse = sonstige Kasseneinnahmen abzgl. Kassenausgaben.
                   </p>
                 </div>
               </CardContent>

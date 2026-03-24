@@ -20,6 +20,8 @@ export default [
     route("companies/:id/bilanzen", "routes/companies.$id.bilanzen.tsx"),
     route("companies/:id/ausgaben", "routes/companies.$id.ausgaben.tsx"),
     route("companies/:id/einnahmen", "routes/companies.$id.einnahmen.tsx"),
+    route("companies/:id/anlagevermoegen", "routes/companies.$id.anlagevermoegen.tsx"),
+    route("companies/:id/money", "routes/companies.$id.money.tsx"),
     route("archiv", "routes/archiv.tsx"),
     route("settings/password", "routes/settings.password.tsx"),
   ]),
@@ -38,6 +40,7 @@ export default [
   route("api/companies/:id", "routes/api.companies.$id.ts"),
   route("api/companies/:id/customers", "routes/api.companies.$id.customers.ts"),
   route("api/companies/:id/invoices", "routes/api.companies.$id.invoices.ts"),
+  route("api/companies/:id/money", "routes/api.companies.$id.money.ts"),
   route("api/customers", "routes/api.customers.ts"),
   route("api/customers/:id", "routes/api.customers.$id.ts"),
   route("api/services", "routes/api.services.ts"),
@@ -52,4 +55,7 @@ export default [
   route("api/ausgaben/:id", "routes/api.ausgaben.$id.ts"),
   route("api/einnahmen", "routes/api.einnahmen.ts"),
   route("api/einnahmen/:id", "routes/api.einnahmen.$id.ts"),
+  route("api/anlagevermoegen", "routes/api.anlagevermoegen.ts"),
+  route("api/anlagevermoegen/:id", "routes/api.anlagevermoegen.$id.ts"),
+
 ] satisfies RouteConfig;
