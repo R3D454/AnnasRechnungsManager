@@ -52,12 +52,14 @@ export async function loader({ request, params }: { request: Request; params: { 
   if (!company) throw new Response("Not Found", { status: 404 });
 
   const year = new Date().getFullYear();
-  const ausgaben = await prisma.betriebsausgabe.findMany({
+  const ausgaben = await prisma.buchung.findMany({
     where: {
       companyId: params.id,
-      datum: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) },
+      type: "ENTNAHME",
+      isBusinessRecord: true,
+      date: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) },
     },
-    orderBy: { datum: "desc" },
+    orderBy: { date: "desc" },
   });
 
   return {
@@ -66,12 +68,12 @@ export async function loader({ request, params }: { request: Request; params: { 
     initialYear: year,
     ausgaben: ausgaben.map((a) => ({
       id: a.id,
-      kategorie: a.kategorie as AusgabeKategorieKey,
-      betrag: Number(a.betrag),
-      steuersatz: Number(a.steuersatz),
-      zahlungsart: a.zahlungsart as "KASSE" | "BANK",
-      datum: a.datum.toISOString(),
-      beschreibung: a.beschreibung,
+      kategorie: (a.kategorie || "SONSTIGER_BETRIEBSBEDARF") as AusgabeKategorieKey,
+      betrag: Number(a.amount),
+      steuersatz: a.steuersatz || 19,
+      zahlungsart: (a.zahlungsart as "KASSE" | "BANK") || "BANK",
+      datum: a.date.toISOString(),
+      beschreibung: a.description,
     })),
   };
 }

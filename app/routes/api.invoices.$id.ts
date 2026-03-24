@@ -103,6 +103,7 @@ export async function action({ request, params }: { request: Request; params: { 
   if (!parsed.success) return Response.json({ error: parsed.error.issues }, { status: 400 });
 
   const newStatus = parsed.data.status;
+  const oldStatus = invoice.status;
 
   let numberUpdate: string | null | undefined = undefined;
   if (newStatus === "DELETED") {
@@ -111,10 +112,45 @@ export async function action({ request, params }: { request: Request; params: { 
     numberUpdate = await generateInvoiceNumber(invoice.companyId);
   }
 
+  // Handle Buchung sync: Create when PAID, delete when unpaying
+  if (newStatus === "PAID" && oldStatus !== "PAID") {
+    // Create a Buchung for the invoice payment
+    const buchung = await prisma.buchung.create({
+      data: {
+        companyId: invoice.companyId,
+        date: invoice.issueDate,
+        account: "BANK",
+        type: "EINLAGE",
+        amount: invoice.grossTotal,
+        description: `Rechnung ${invoice.number}`,
+        kategorie: "Rechnungseinnahme",
+        isBusinessRecord: true,
+      },
+    });
+
+    // Update invoice with buchungId
+    const updated = await prisma.invoice.update({
+      where: { id: params.id },
+      data: {
+        status: newStatus,
+        buchungId: buchung.id,
+        deletedAt: null,
+        ...(numberUpdate !== undefined && { number: numberUpdate }),
+      },
+    });
+    return Response.json(updated);
+  }
+
+  if (newStatus !== "PAID" && oldStatus === "PAID" && invoice.buchungId) {
+    // Delete the linked Buchung when unpaying
+    await prisma.buchung.delete({ where: { id: invoice.buchungId } });
+  }
+
   const updated = await prisma.invoice.update({
     where: { id: params.id },
     data: {
       status: newStatus,
+      buchungId: newStatus === "PAID" ? invoice.buchungId : null,
       deletedAt: newStatus === "DELETED" ? new Date() : null,
       ...(numberUpdate !== undefined && { number: numberUpdate }),
     },

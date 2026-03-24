@@ -1,11 +1,10 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
 import { z } from "zod";
-import { EinnahmeKategorie } from "@prisma/client";
 
 const createSchema = z.object({
   companyId: z.string().min(1),
-  kategorie: z.nativeEnum(EinnahmeKategorie),
+  kategorie: z.string().min(1),
   betrag: z.number().positive(),
   steuersatz: z.number().min(0).default(0),
   zahlungsart: z.enum(["KASSE", "BANK"]).default("BANK"),
@@ -18,7 +17,7 @@ const createSchema = z.object({
  *
  * Requires a companyId search parameter. If year is provided, filters einnahmen for the given year.
  *
- * Returns a list of einnahmen as a JSON object.
+ * Returns a list of einnahmen (Buchungen with isBusinessRecord=true, type=EINLAGE) as a JSON object.
  *
  * If the request is unauthorized, returns a 401 response with an error message.
  * If the request body is invalid, returns a 400 response with an error message containing the validation errors.
@@ -37,42 +36,45 @@ export async function loader({ request }: { request: Request }) {
   const company = await prisma.company.findFirst({ where: { id: companyId, userId: user.id } });
   if (!company) return Response.json({ error: "Not found" }, { status: 404 });
 
-  const einnahmen = await prisma.betriebseinnahme.findMany({
+  const einnahmen = await prisma.buchung.findMany({
     where: {
       companyId,
+      type: "EINLAGE",
+      isBusinessRecord: true,
       ...(year ? {
-        datum: {
+        date: {
           gte: new Date(`${year}-01-01`),
           lt: new Date(`${year + 1}-01-01`),
         },
       } : {}),
     },
-    orderBy: { datum: "asc" },
+    orderBy: { date: "asc" },
   });
 
   return Response.json(
     einnahmen.map((e) => ({
       ...e,
-      betrag: Number(e.betrag),
-      steuersatz: Number(e.steuersatz),
-      datum: e.datum.toISOString(),
+      amount: Number(e.amount),
+      date: e.date.toISOString(),
     }))
   );
 }
 
 /**
- * Creates a new einnahme for a given company.
+ * Creates a new einnahme (Buchung) for a given company.
  *
  * Requires a JSON object in the request body with the following shape:
  * {
  *   companyId: string,
- *   kategorie: EinnahmeKategorie,
+ *   kategorie: string (BuchungKategorie name),
  *   betrag: number,
+ *   steuersatz: number,
+ *   zahlungsart: "KASSE" | "BANK",
  *   datum: string,
  *   beschreibung: string,
  * }
  *
- * Returns the created einnahme as a JSON object.
+ * Returns the created Buchung as a JSON object.
  *
  * If the request is unauthorized, returns a 401 response with an error message.
  * If the request body is invalid, returns a 400 response with an error message containing the validation errors.
@@ -91,24 +93,26 @@ export async function action({ request }: { request: Request }) {
   });
   if (!company) return Response.json({ error: "Company not found" }, { status: 404 });
 
-  const einnahme = await prisma.betriebseinnahme.create({
+  const einnahme = await prisma.buchung.create({
     data: {
       companyId: parsed.data.companyId,
+      account: parsed.data.zahlungsart === "KASSE" ? "KASSE" : "BANK",
+      type: "EINLAGE",
+      amount: parsed.data.betrag,
+      date: new Date(parsed.data.datum),
+      description: parsed.data.beschreibung,
       kategorie: parsed.data.kategorie,
-      betrag: parsed.data.betrag,
       steuersatz: parsed.data.steuersatz,
       zahlungsart: parsed.data.zahlungsart,
-      datum: new Date(parsed.data.datum),
-      beschreibung: parsed.data.beschreibung,
+      isBusinessRecord: true,
     },
   });
 
   return Response.json(
     {
       ...einnahme,
-      betrag: Number(einnahme.betrag),
-      steuersatz: Number(einnahme.steuersatz),
-      datum: einnahme.datum.toISOString(),
+      amount: Number(einnahme.amount),
+      date: einnahme.date.toISOString(),
     },
     { status: 201 }
   );

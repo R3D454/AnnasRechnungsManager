@@ -1,10 +1,9 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
 import { z } from "zod";
-import { AusgabeKategorie } from "@prisma/client";
 
 const updateSchema = z.object({
-  kategorie: z.nativeEnum(AusgabeKategorie),
+  kategorie: z.string().min(1),
   betrag: z.number().positive(),
   steuersatz: z.number().min(0).default(0),
   zahlungsart: z.enum(["KASSE", "BANK"]).default("BANK"),
@@ -16,13 +15,13 @@ export async function action({ request, params }: { request: Request; params: { 
   const user = await getApiUser(request);
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-  const ausgabe = await prisma.betriebsausgabe.findFirst({
-    where: { id: params.id, company: { userId: user.id } },
+  const buchung = await prisma.buchung.findFirst({
+    where: { id: params.id, company: { userId: user.id }, type: "ENTNAHME", isBusinessRecord: true },
   });
-  if (!ausgabe) return Response.json({ error: "Not found" }, { status: 404 });
+  if (!buchung) return Response.json({ error: "Not found" }, { status: 404 });
 
   if (request.method === "DELETE") {
-    await prisma.betriebsausgabe.delete({ where: { id: params.id } });
+    await prisma.buchung.delete({ where: { id: params.id } });
     return Response.json({ ok: true });
   }
 
@@ -30,22 +29,22 @@ export async function action({ request, params }: { request: Request; params: { 
   const parsed = updateSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.issues }, { status: 400 });
 
-  const updated = await prisma.betriebsausgabe.update({
+  const updated = await prisma.buchung.update({
     where: { id: params.id },
     data: {
       kategorie: parsed.data.kategorie,
-      betrag: parsed.data.betrag,
+      amount: parsed.data.betrag,
       steuersatz: parsed.data.steuersatz,
       zahlungsart: parsed.data.zahlungsart,
-      datum: new Date(parsed.data.datum),
-      beschreibung: parsed.data.beschreibung,
+      account: parsed.data.zahlungsart === "KASSE" ? "KASSE" : "BANK",
+      date: new Date(parsed.data.datum),
+      description: parsed.data.beschreibung,
     },
   });
 
   return Response.json({
     ...updated,
-    betrag: Number(updated.betrag),
-    steuersatz: Number(updated.steuersatz),
-    datum: updated.datum.toISOString(),
+    amount: Number(updated.amount),
+    date: updated.date.toISOString(),
   });
 }

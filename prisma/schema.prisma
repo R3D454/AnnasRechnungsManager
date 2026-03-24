@@ -45,39 +45,51 @@ model AuditLog {
 }
 
 model Company {
-  id              String     @id @default(cuid())
-  name            String
-  legalForm       String?
-  taxId           String?
-  vatId           String?
-  address         String
-  zip             String
-  city            String
-  country         String     @default("DE")
-  email           String?
-  phone           String?
-  website         String?
-  bankIban        String?
-  bankBic         String?
-  bankName        String?
-  invoicePrefix   String     @default("RE")
-  invoiceSequence Int        @default(0)
-  kleinunternehmer Boolean   @default(false)
-  archived        Boolean    @default(false)
-  archivedAt      DateTime?
-  userId          String
-  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  customers         Customer[]
-  invoices          Invoice[]
-  services          Service[]
-  betriebsausgaben  Betriebsausgabe[]
-  betriebseinnahmen Betriebseinnahme[]
-  anlagegueter      Anlagegut[]
-  buchungen         Buchung[]
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  id                String              @id @default(cuid())
+  name              String
+  legalForm         String?
+  taxId             String?
+  vatId             String?
+  address           String
+  zip               String
+  city              String
+  country           String              @default("DE")
+  email             String?
+  phone             String?
+  website           String?
+  bankIban          String?
+  bankBic           String?
+  bankName          String?
+  invoicePrefix     String              @default("RE")
+  invoiceSequence   Int                 @default(0)
+  kleinunternehmer  Boolean             @default(false)
+  archived          Boolean             @default(false)
+  archivedAt        DateTime?
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  customers    Customer[]
+  invoices     Invoice[]
+  services     Service[]
+  anlagegueter Anlagegut[]
+  buchungen    Buchung[]
+  kategorien   BuchungKategorie[]
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
 
   @@map("companies")
+}
+
+model BuchungKategorie {
+  id        String   @id @default(cuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name      String   // e.g., "Fußpflege", "Miete", "Privateinlagen"
+  typ       String   // "EINNAHME" or "AUSGABE"
+  createdAt DateTime @default(now())
+
+  @@unique([companyId, name, typ])
+  @@index([companyId])
+  @@map("buchung_kategorien")
 }
 
 enum TransactionAccount {
@@ -91,19 +103,28 @@ enum TransactionType {
 }
 
 model Buchung {
-  id          String             @id @default(cuid())
-  companyId   String
-  company     Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  date        DateTime
-  account     TransactionAccount
-  type        TransactionType
-  amount      Decimal            @db.Decimal(10, 2)
-  description String?            @db.Text
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id                 String             @id @default(cuid())
+  companyId          String
+  company            Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  date               DateTime
+  account            TransactionAccount
+  type               TransactionType
+  amount             Decimal            @db.Decimal(10, 2)
+  description        String?            @db.Text
+  kategorie          String?            // Name of BuchungKategorie (nullable for manual transactions)
+  steuersatz         Int?               // Tax rate: 0, 7, 19 (nullable for non-business records)
+  zahlungsart        Zahlungsart?       // KASSE or BANK
+  isBusinessRecord   Boolean            @default(false) // True if this is from Einnahme/Ausgabe
+  linkedBuchungId    String?
+  linkedBuchung      Buchung?           @relation("BuchungLink", fields: [linkedBuchungId], references: [id], onDelete: SetNull)
+  linkedFrom         Buchung[]          @relation("BuchungLink")
+  invoice            Invoice?           // Back-relation: Invoice -> Buchung (via buchungId)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   @@index([companyId])
   @@index([date])
+  @@index([isBusinessRecord])
   @@map("buchungen")
 }
 
@@ -142,25 +163,27 @@ model Customer {
 }
 
 model Invoice {
-  id           String        @id @default(cuid())
-  number       String?
-  companyId    String
-  company      Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  customerId   String
-  customer     Customer      @relation(fields: [customerId], references: [id])
-  issueDate    DateTime
-  deliveryDate DateTime?
-  dueDate      DateTime
-  status          InvoiceStatus @default(DRAFT)
-  kleinunternehmer Boolean       @default(false)
-  notes           String?        @db.Text
-  items        InvoiceItem[]
-  netTotal     Decimal       @db.Decimal(10, 2)
-  taxTotal     Decimal       @db.Decimal(10, 2)
-  grossTotal   Decimal       @db.Decimal(10, 2)
-  createdAt    DateTime      @default(now())
-  updatedAt    DateTime      @updatedAt
-  deletedAt    DateTime?
+  id                String        @id @default(cuid())
+  number            String?
+  companyId         String
+  company           Company       @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customerId        String
+  customer          Customer      @relation(fields: [customerId], references: [id])
+  issueDate         DateTime
+  deliveryDate      DateTime?
+  dueDate           DateTime
+  status            InvoiceStatus @default(DRAFT)
+  kleinunternehmer  Boolean       @default(false)
+  notes             String?       @db.Text
+  items             InvoiceItem[]
+  netTotal          Decimal       @db.Decimal(10, 2)
+  taxTotal          Decimal       @db.Decimal(10, 2)
+  grossTotal        Decimal       @db.Decimal(10, 2)
+  buchungId         String?       @unique  // Link to auto-created Buchung when PAID
+  buchung           Buchung?      @relation(fields: [buchungId], references: [id], onDelete: SetNull)
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
 
   @@unique([companyId, number])
   @@map("invoices")
@@ -179,36 +202,6 @@ enum Zahlungsart {
   BANK
 }
 
-enum EinnahmeKategorie {
-  FUSSPFLEGE
-  PRIVATEINLAGEN
-  DARLEHEN
-  STEUERERSTATTUNGEN
-  VERSICHERUNGSERSTATTUNGEN
-  ZINSERTRAEGE
-  VERMIETUNG_VERPACHTUNG
-  VERAEUSSERUNGSERLOES
-  EIGENVERBRAUCH
-  SONSTIGE_EINNAHMEN
-}
-
-model Betriebseinnahme {
-  id           String            @id @default(cuid())
-  companyId    String
-  company      Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  kategorie    EinnahmeKategorie
-  betrag       Decimal           @db.Decimal(10, 2)
-  steuersatz   Decimal           @db.Decimal(5, 2) @default(0)
-  zahlungsart  Zahlungsart       @default(BANK)
-  datum        DateTime
-  beschreibung String?           @db.Text
-  createdAt    DateTime          @default(now())
-  updatedAt    DateTime          @updatedAt
-
-  @@index([companyId])
-  @@index([datum])
-  @@map("betriebseinnahmen")
-}
 
 model Anlagegut {
   id                  String   @id @default(cuid())
@@ -228,43 +221,6 @@ model Anlagegut {
   @@map("anlagegueter")
 }
 
-enum AusgabeKategorie {
-  WAREN_ROHSTOFFE
-  GERINGWERTIGE_WIRTSCHAFTSGUETER
-  ABSCHREIBUNGEN
-  MIETE
-  STROM_WASSER
-  TELEKOMMUNIKATION
-  FORTBILDUNG_MESSEN
-  BEITRAEGE
-  VERSICHERUNGEN
-  WERBEKOSTEN
-  ZINSEN
-  REISEKOSTEN
-  REPARATUREN_INSTANDHALTUNG
-  BUEROBEDARF
-  REPRAESENTATIONSKOSTEN
-  SONSTIGER_BETRIEBSBEDARF
-  NEBENKOSTEN_GELDVERKEHR
-}
-
-model Betriebsausgabe {
-  id           String           @id @default(cuid())
-  companyId    String
-  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  kategorie    AusgabeKategorie
-  betrag       Decimal          @db.Decimal(10, 2)
-  steuersatz   Decimal          @db.Decimal(5, 2) @default(0)
-  zahlungsart  Zahlungsart      @default(BANK)
-  datum        DateTime
-  beschreibung String?          @db.Text
-  createdAt    DateTime         @default(now())
-  updatedAt    DateTime         @updatedAt
-
-  @@index([companyId])
-  @@index([datum])
-  @@map("betriebsausgaben")
-}
 
 model InvoiceItem {
   id          String  @id @default(cuid())

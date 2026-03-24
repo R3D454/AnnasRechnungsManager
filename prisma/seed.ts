@@ -136,8 +136,60 @@ async function main() {
     data: { invoiceSequence: 1 },
   });
 
+  // Seed BuchungKategorien for demo company
+  const einnahmeKategorien = [
+    "Fußpflege",
+    "Privateinlagen",
+    "Darlehen",
+    "Steuererstattungen",
+    "Versicherungserstattungen",
+    "Zinsertrage",
+    "Vermietung/Verpachtung",
+    "Veräußerungserlös",
+    "Eigenverbrauch",
+    "Sonstige Einnahmen",
+  ];
+
+  const ausgabeKategorien = [
+    "Waren und Rohstoffe",
+    "Geringwertige Wirtschaftsgüter",
+    "Abschreibungen",
+    "Miete",
+    "Strom und Wasser",
+    "Telekommunikation",
+    "Fortbildung und Messen",
+    "Beiträge",
+    "Versicherungen",
+    "Werbekosten",
+    "Zinsen",
+    "Reisekosten",
+    "Reparaturen und Instandhaltung",
+    "Bürobedarf",
+    "Repräsentationskosten",
+    "Sonstiger Betriebsbedarf",
+    "Nebenkosten Geldverkehr",
+  ];
+
+  for (const name of einnahmeKategorien) {
+    await prisma.buchungKategorie.upsert({
+      where: { companyId_name_typ: { companyId: company.id, name, typ: "EINNAHME" } },
+      update: {},
+      create: { companyId: company.id, name, typ: "EINNAHME" },
+    });
+  }
+  console.log(`✓ Seeded ${einnahmeKategorien.length} Einnahme categories`);
+
+  for (const name of ausgabeKategorien) {
+    await prisma.buchungKategorie.upsert({
+      where: { companyId_name_typ: { companyId: company.id, name, typ: "AUSGABE" } },
+      update: {},
+      create: { companyId: company.id, name, typ: "AUSGABE" },
+    });
+  }
+  console.log(`✓ Seeded ${ausgabeKategorien.length} Ausgabe categories`);
+
   console.log("\n✅ Seed complete!");
-  console.log("Login: anna@example.de / demo123");
+  console.log("Login: anna@example.de / annas_password");
 }
 
 main()
