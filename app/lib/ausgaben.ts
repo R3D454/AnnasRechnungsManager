@@ -1,0 +1,41 @@
+export const AUSGABE_KATEGORIEN = [
+  "WAREN_ROHSTOFFE",
+  "GERINGWERTIGE_WIRTSCHAFTSGUETER",
+  "ABSCHREIBUNGEN",
+  "MIETE",
+  "STROM_WASSER",
+  "TELEKOMMUNIKATION",
+  "FORTBILDUNG_MESSEN",
+  "BEITRAEGE",
+  "VERSICHERUNGEN",
+  "WERBEKOSTEN",
+  "ZINSEN",
+  "REISEKOSTEN",
+  "REPARATUREN_INSTANDHALTUNG",
+  "BUEROBEDARF",
+  "REPRAESENTATIONSKOSTEN",
+  "SONSTIGER_BETRIEBSBEDARF",
+  "NEBENKOSTEN_GELDVERKEHR",
+] as const;
+
+export type AusgabeKategorieKey = typeof AUSGABE_KATEGORIEN[number];
+
+export const KATEGORIE_LABELS: Record<AusgabeKategorieKey, string> = {
+  WAREN_ROHSTOFFE: "Waren, Rohstoffe, Hilfsstoffe",
+  GERINGWERTIGE_WIRTSCHAFTSGUETER: "Geringwertige Wirtschaftsgüter",
+  ABSCHREIBUNGEN: "Abschreibungen",
+  MIETE: "Miete",
+  STROM_WASSER: "Strom, Wasser",
+  TELEKOMMUNIKATION: "Telekommunikationskosten",
+  FORTBILDUNG_MESSEN: "Fortbildungskosten/Messen",
+  BEITRAEGE: "Beiträge",
+  VERSICHERUNGEN: "Versicherungen",
+  WERBEKOSTEN: "Werbekosten",
+  ZINSEN: "Zinsen",
+  REISEKOSTEN: "Reisekosten",
+  REPARATUREN_INSTANDHALTUNG: "Reparaturen / Instandhaltung",
+  BUEROBEDARF: "Bürobedarf",
+  REPRAESENTATIONSKOSTEN: "Repräsentationskosten",
+  SONSTIGER_BETRIEBSBEDARF: "Sonstiger Betriebsbedarf",
+  NEBENKOSTEN_GELDVERKEHR: "Nebenkosten des Geldverkehrs",
+};

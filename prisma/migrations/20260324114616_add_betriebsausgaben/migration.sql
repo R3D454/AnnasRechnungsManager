@@ -1,0 +1,18 @@
+-- CreateTable
+CREATE TABLE `betriebsausgaben` (
+    `id` VARCHAR(191) NOT NULL,
+    `companyId` VARCHAR(191) NOT NULL,
+    `kategorie` ENUM('WAREN_ROHSTOFFE', 'GERINGWERTIGE_WIRTSCHAFTSGUETER', 'ABSCHREIBUNGEN', 'MIETE', 'STROM_WASSER', 'TELEKOMMUNIKATION', 'FORTBILDUNG_MESSEN', 'BEITRAEGE', 'VERSICHERUNGEN', 'WERBEKOSTEN', 'ZINSEN', 'REISEKOSTEN', 'REPARATUREN_INSTANDHALTUNG', 'BUEROBEDARF', 'REPRAESENTATIONSKOSTEN', 'SONSTIGER_BETRIEBSBEDARF', 'NEBENKOSTEN_GELDVERKEHR') NOT NULL,
+    `betrag` DECIMAL(10, 2) NOT NULL,
+    `datum` DATETIME(3) NOT NULL,
+    `beschreibung` TEXT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `betriebsausgaben_companyId_idx`(`companyId`),
+    INDEX `betriebsausgaben_datum_idx`(`datum`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- AddForeignKey
+ALTER TABLE `betriebsausgaben` ADD CONSTRAINT `betriebsausgaben_companyId_fkey` FOREIGN KEY (`companyId`) REFERENCES `companies`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

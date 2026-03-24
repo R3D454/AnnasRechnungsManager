@@ -17,12 +17,16 @@ export default [
     route("companies/:id/invoices/:invoiceId", "routes/companies.$id.invoices.$invoiceId.tsx"),
     route("companies/:id/invoices/:invoiceId/edit", "routes/companies.$id.invoices.$invoiceId.edit.tsx"),
     route("companies/:id/reports", "routes/companies.$id.reports.tsx"),
+    route("companies/:id/bilanzen", "routes/companies.$id.bilanzen.tsx"),
+    route("companies/:id/ausgaben", "routes/companies.$id.ausgaben.tsx"),
+    route("companies/:id/einnahmen", "routes/companies.$id.einnahmen.tsx"),
     route("archiv", "routes/archiv.tsx"),
     route("settings/password", "routes/settings.password.tsx"),
   ]),
 
   // Admin routes
   layout("routes/admin-layout.tsx", [
+    route("admin/mandanten", "routes/admin.mandanten.tsx"),
     route("admin/users", "routes/admin.users.tsx"),
     route("admin/users/new", "routes/admin.users.new.tsx"),
     route("admin/users/:id", "routes/admin.users.$id.tsx"),
@@ -43,4 +47,9 @@ export default [
   route("api/invoices/:id/pdf", "routes/api.invoices.$id.pdf.ts"),
   route("api/invoices/:id/xml", "routes/api.invoices.$id.xml.ts"),
   route("api/reports", "routes/api.reports.ts"),
+  route("api/bilanzen", "routes/api.bilanzen.ts"),
+  route("api/ausgaben", "routes/api.ausgaben.ts"),
+  route("api/ausgaben/:id", "routes/api.ausgaben.$id.ts"),
+  route("api/einnahmen", "routes/api.einnahmen.ts"),
+  route("api/einnahmen/:id", "routes/api.einnahmen.$id.ts"),
 ] satisfies RouteConfig;

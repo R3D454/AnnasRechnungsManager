@@ -1,6 +1,6 @@
 import { Outlet, useLoaderData, Link, useLocation } from "react-router";
 import { requireAdmin } from "@/session.server";
-import { Shield, Users, ScrollText, LayoutDashboard } from "lucide-react";
+import { Shield, Users, ScrollText, LayoutDashboard, Building2 } from "lucide-react";
 
 export async function loader({ request }: { request: Request }) {
   const user = await requireAdmin(request);
@@ -12,6 +12,7 @@ export default function AdminLayout() {
   const location = useLocation();
 
   const navItems = [
+    { to: "/admin/mandanten", label: "Mandanten", icon: Building2 },
     { to: "/admin/users", label: "Benutzerverwaltung", icon: Users },
     { to: "/admin/logs", label: "Audit-Log", icon: ScrollText },
   ];

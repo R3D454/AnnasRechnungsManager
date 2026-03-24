@@ -73,10 +73,28 @@ type Pages = {
       "id": string;
     };
   };
+  "/companies/:id/bilanzen": {
+    params: {
+      "id": string;
+    };
+  };
+  "/companies/:id/ausgaben": {
+    params: {
+      "id": string;
+    };
+  };
+  "/companies/:id/einnahmen": {
+    params: {
+      "id": string;
+    };
+  };
   "/archiv": {
     params: {};
   };
   "/settings/password": {
+    params: {};
+  };
+  "/admin/mandanten": {
     params: {};
   };
   "/admin/users": {
@@ -148,12 +166,31 @@ type Pages = {
   "/api/reports": {
     params: {};
   };
+  "/api/bilanzen": {
+    params: {};
+  };
+  "/api/ausgaben": {
+    params: {};
+  };
+  "/api/ausgaben/:id": {
+    params: {
+      "id": string;
+    };
+  };
+  "/api/einnahmen": {
+    params: {};
+  };
+  "/api/einnahmen/:id": {
+    params: {
+      "id": string;
+    };
+  };
 };
 
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/archiv" | "/settings/password" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/customers" | "/api/customers/:id" | "/api/services" | "/api/services/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/invoices/:id/xml" | "/api/reports";
+    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/companies/:id/bilanzen" | "/companies/:id/ausgaben" | "/companies/:id/einnahmen" | "/archiv" | "/settings/password" | "/admin/mandanten" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/customers" | "/api/customers/:id" | "/api/services" | "/api/services/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/invoices/:id/xml" | "/api/reports" | "/api/bilanzen" | "/api/ausgaben" | "/api/ausgaben/:id" | "/api/einnahmen" | "/api/einnahmen/:id";
   };
   "routes/login.tsx": {
     id: "routes/login";
@@ -165,7 +202,7 @@ type RouteFiles = {
   };
   "routes/dashboard-layout.tsx": {
     id: "routes/dashboard-layout";
-    page: "/" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/archiv" | "/settings/password";
+    page: "/" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/companies/:id/bilanzen" | "/companies/:id/ausgaben" | "/companies/:id/einnahmen" | "/archiv" | "/settings/password";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -215,6 +252,18 @@ type RouteFiles = {
     id: "routes/companies.$id.reports";
     page: "/companies/:id/reports";
   };
+  "routes/companies.$id.bilanzen.tsx": {
+    id: "routes/companies.$id.bilanzen";
+    page: "/companies/:id/bilanzen";
+  };
+  "routes/companies.$id.ausgaben.tsx": {
+    id: "routes/companies.$id.ausgaben";
+    page: "/companies/:id/ausgaben";
+  };
+  "routes/companies.$id.einnahmen.tsx": {
+    id: "routes/companies.$id.einnahmen";
+    page: "/companies/:id/einnahmen";
+  };
   "routes/archiv.tsx": {
     id: "routes/archiv";
     page: "/archiv";
@@ -225,7 +274,11 @@ type RouteFiles = {
   };
   "routes/admin-layout.tsx": {
     id: "routes/admin-layout";
-    page: "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs";
+    page: "/admin/mandanten" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs";
+  };
+  "routes/admin.mandanten.tsx": {
+    id: "routes/admin.mandanten";
+    page: "/admin/mandanten";
   };
   "routes/admin.users.tsx": {
     id: "routes/admin.users";
@@ -295,6 +348,26 @@ type RouteFiles = {
     id: "routes/api.reports";
     page: "/api/reports";
   };
+  "routes/api.bilanzen.ts": {
+    id: "routes/api.bilanzen";
+    page: "/api/bilanzen";
+  };
+  "routes/api.ausgaben.ts": {
+    id: "routes/api.ausgaben";
+    page: "/api/ausgaben";
+  };
+  "routes/api.ausgaben.$id.ts": {
+    id: "routes/api.ausgaben.$id";
+    page: "/api/ausgaben/:id";
+  };
+  "routes/api.einnahmen.ts": {
+    id: "routes/api.einnahmen";
+    page: "/api/einnahmen";
+  };
+  "routes/api.einnahmen.$id.ts": {
+    id: "routes/api.einnahmen.$id";
+    page: "/api/einnahmen/:id";
+  };
 };
 
 type RouteModules = {
@@ -314,9 +387,13 @@ type RouteModules = {
   "routes/companies.$id.invoices.$invoiceId": typeof import("./app/routes/companies.$id.invoices.$invoiceId.tsx");
   "routes/companies.$id.invoices.$invoiceId.edit": typeof import("./app/routes/companies.$id.invoices.$invoiceId.edit.tsx");
   "routes/companies.$id.reports": typeof import("./app/routes/companies.$id.reports.tsx");
+  "routes/companies.$id.bilanzen": typeof import("./app/routes/companies.$id.bilanzen.tsx");
+  "routes/companies.$id.ausgaben": typeof import("./app/routes/companies.$id.ausgaben.tsx");
+  "routes/companies.$id.einnahmen": typeof import("./app/routes/companies.$id.einnahmen.tsx");
   "routes/archiv": typeof import("./app/routes/archiv.tsx");
   "routes/settings.password": typeof import("./app/routes/settings.password.tsx");
   "routes/admin-layout": typeof import("./app/routes/admin-layout.tsx");
+  "routes/admin.mandanten": typeof import("./app/routes/admin.mandanten.tsx");
   "routes/admin.users": typeof import("./app/routes/admin.users.tsx");
   "routes/admin.users.new": typeof import("./app/routes/admin.users.new.tsx");
   "routes/admin.users.$id": typeof import("./app/routes/admin.users.$id.tsx");
@@ -334,4 +411,9 @@ type RouteModules = {
   "routes/api.invoices.$id.pdf": typeof import("./app/routes/api.invoices.$id.pdf.ts");
   "routes/api.invoices.$id.xml": typeof import("./app/routes/api.invoices.$id.xml.ts");
   "routes/api.reports": typeof import("./app/routes/api.reports.ts");
+  "routes/api.bilanzen": typeof import("./app/routes/api.bilanzen.ts");
+  "routes/api.ausgaben": typeof import("./app/routes/api.ausgaben.ts");
+  "routes/api.ausgaben.$id": typeof import("./app/routes/api.ausgaben.$id.ts");
+  "routes/api.einnahmen": typeof import("./app/routes/api.einnahmen.ts");
+  "routes/api.einnahmen.$id": typeof import("./app/routes/api.einnahmen.$id.ts");
 };

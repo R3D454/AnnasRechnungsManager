@@ -7,7 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/tax";
 import {
   FileText, Users, BarChart3, Plus, Edit, Building2,
-  Mail, Phone, CreditCard, Receipt, Archive, ArchiveRestore, AlertTriangle, Briefcase
+  Mail, Phone, CreditCard, Receipt, Archive, ArchiveRestore, AlertTriangle, Briefcase, Scale, TrendingDown, TrendingUp
 } from "lucide-react";
 import { InvoiceStatus } from "@prisma/client";
 import { useState } from "react";
@@ -50,9 +50,10 @@ const statusVariants: Record<InvoiceStatus, "secondary" | "default" | "success" 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
   const user = await requireUser(request);
   const { id } = params;
+  const isAdmin = user.role === "ADMIN";
 
   const company = await prisma.company.findFirst({
-    where: { id, userId: user.id },
+    where: isAdmin ? { id } : { id, userId: user.id },
     include: {
       invoices: {
         where: { status: { not: InvoiceStatus.DELETED } },
@@ -72,7 +73,7 @@ export async function loader({ request, params }: { request: Request; params: { 
   });
 
   return {
-    isAdmin: user.role === "ADMIN",
+    isAdmin,
     company: {
       ...company,
       archivedAt: company.archivedAt?.toISOString() ?? null,
@@ -229,6 +230,36 @@ export default function CompanyPage() {
                 <BarChart3 className="h-4 w-4 text-purple-600" />
               </div>
               <span className="text-sm font-medium text-gray-700">Berichte</span>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to={`/companies/${id}/bilanzen`} className="block">
+          <Card className="hover:border-teal-200 hover:shadow-sm transition-all cursor-pointer">
+            <CardContent className="pt-4 pb-4 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-teal-50">
+                <Scale className="h-4 w-4 text-teal-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Bilanzen</span>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to={`/companies/${id}/ausgaben`} className="block">
+          <Card className="hover:border-rose-200 hover:shadow-sm transition-all cursor-pointer">
+            <CardContent className="pt-4 pb-4 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-rose-50">
+                <TrendingDown className="h-4 w-4 text-rose-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Ausgaben</span>
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to={`/companies/${id}/einnahmen`} className="block">
+          <Card className="hover:border-emerald-200 hover:shadow-sm transition-all cursor-pointer">
+            <CardContent className="pt-4 pb-4 flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-emerald-50">
+                <TrendingUp className="h-4 w-4 text-emerald-600" />
+              </div>
+              <span className="text-sm font-medium text-gray-700">Einnahmen</span>
             </CardContent>
           </Card>
         </Link>
