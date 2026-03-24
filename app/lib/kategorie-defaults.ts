@@ -1,0 +1,32 @@
+export const DEFAULT_AUSGABE_KATEGORIEN = [
+  "Waren, Rohstoffe, Hilfsstoffe",
+  "Geringwertige Wirtschaftsgüter",
+  "Abschreibungen",
+  "Miete",
+  "Strom, Wasser",
+  "Telekommunikationskosten",
+  "Fortbildungskosten/Messen",
+  "Beiträge",
+  "Versicherungen",
+  "Werbekosten",
+  "Zinsen",
+  "Reisekosten",
+  "Reparaturen / Instandhaltung",
+  "Bürobedarf",
+  "Repräsentationskosten",
+  "Sonstiger Betriebsbedarf",
+  "Nebenkosten des Geldverkehrs",
+];
+
+export const DEFAULT_EINNAHME_KATEGORIEN = [
+  "Fußpflege/Verkauf/Gutscheine",
+  "Privateinlagen",
+  "Darlehen",
+  "Steuererstattungen",
+  "Versicherungserstattungen",
+  "Zinserträge",
+  "Miet-/Pachteinnahmen",
+  "Veräußerungserlöse",
+  "Eigenverbrauch",
+  "Sonstige Einnahmen",
+];

@@ -83,7 +83,17 @@ type Pages = {
       "id": string;
     };
   };
+  "/companies/:id/ausgaben/kategorien": {
+    params: {
+      "id": string;
+    };
+  };
   "/companies/:id/einnahmen": {
+    params: {
+      "id": string;
+    };
+  };
+  "/companies/:id/einnahmen/kategorien": {
     params: {
       "id": string;
     };
@@ -200,6 +210,17 @@ type Pages = {
       "id": string;
     };
   };
+  "/api/companies/:id/buchungkategorien": {
+    params: {
+      "id": string;
+    };
+  };
+  "/api/companies/:id/buchungkategorien/:katId": {
+    params: {
+      "id": string;
+      "katId": string;
+    };
+  };
   "/api/anlagevermoegen": {
     params: {};
   };
@@ -213,7 +234,7 @@ type Pages = {
 type RouteFiles = {
   "root.tsx": {
     id: "root";
-    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/companies/:id/bilanzen" | "/companies/:id/ausgaben" | "/companies/:id/einnahmen" | "/companies/:id/anlagevermoegen" | "/companies/:id/money" | "/archiv" | "/settings/password" | "/admin/mandanten" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/companies/:id/money" | "/api/customers" | "/api/customers/:id" | "/api/services" | "/api/services/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/invoices/:id/xml" | "/api/reports" | "/api/bilanzen" | "/api/ausgaben" | "/api/ausgaben/:id" | "/api/einnahmen" | "/api/einnahmen/:id" | "/api/anlagevermoegen" | "/api/anlagevermoegen/:id";
+    page: "/" | "/login" | "/logout" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/companies/:id/bilanzen" | "/companies/:id/ausgaben" | "/companies/:id/ausgaben/kategorien" | "/companies/:id/einnahmen" | "/companies/:id/einnahmen/kategorien" | "/companies/:id/anlagevermoegen" | "/companies/:id/money" | "/archiv" | "/settings/password" | "/admin/mandanten" | "/admin/users" | "/admin/users/new" | "/admin/users/:id" | "/admin/logs" | "/api/companies" | "/api/companies/:id" | "/api/companies/:id/customers" | "/api/companies/:id/invoices" | "/api/companies/:id/money" | "/api/customers" | "/api/customers/:id" | "/api/services" | "/api/services/:id" | "/api/invoices" | "/api/invoices/:id" | "/api/invoices/:id/pdf" | "/api/invoices/:id/xml" | "/api/reports" | "/api/bilanzen" | "/api/ausgaben" | "/api/ausgaben/:id" | "/api/einnahmen" | "/api/einnahmen/:id" | "/api/companies/:id/buchungkategorien" | "/api/companies/:id/buchungkategorien/:katId" | "/api/anlagevermoegen" | "/api/anlagevermoegen/:id";
   };
   "routes/login.tsx": {
     id: "routes/login";
@@ -225,7 +246,7 @@ type RouteFiles = {
   };
   "routes/dashboard-layout.tsx": {
     id: "routes/dashboard-layout";
-    page: "/" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/companies/:id/bilanzen" | "/companies/:id/ausgaben" | "/companies/:id/einnahmen" | "/companies/:id/anlagevermoegen" | "/companies/:id/money" | "/archiv" | "/settings/password";
+    page: "/" | "/companies" | "/companies/new" | "/companies/:id" | "/companies/:id/edit" | "/companies/:id/customers" | "/companies/:id/leistungen" | "/companies/:id/invoices" | "/companies/:id/invoices/new" | "/companies/:id/invoices/:invoiceId" | "/companies/:id/invoices/:invoiceId/edit" | "/companies/:id/reports" | "/companies/:id/bilanzen" | "/companies/:id/ausgaben" | "/companies/:id/ausgaben/kategorien" | "/companies/:id/einnahmen" | "/companies/:id/einnahmen/kategorien" | "/companies/:id/anlagevermoegen" | "/companies/:id/money" | "/archiv" | "/settings/password";
   };
   "routes/home.tsx": {
     id: "routes/home";
@@ -283,9 +304,17 @@ type RouteFiles = {
     id: "routes/companies.$id.ausgaben";
     page: "/companies/:id/ausgaben";
   };
+  "routes/companies.$id.ausgaben.kategorien.tsx": {
+    id: "routes/companies.$id.ausgaben.kategorien";
+    page: "/companies/:id/ausgaben/kategorien";
+  };
   "routes/companies.$id.einnahmen.tsx": {
     id: "routes/companies.$id.einnahmen";
     page: "/companies/:id/einnahmen";
+  };
+  "routes/companies.$id.einnahmen.kategorien.tsx": {
+    id: "routes/companies.$id.einnahmen.kategorien";
+    page: "/companies/:id/einnahmen/kategorien";
   };
   "routes/companies.$id.anlagevermoegen.tsx": {
     id: "routes/companies.$id.anlagevermoegen";
@@ -403,6 +432,14 @@ type RouteFiles = {
     id: "routes/api.einnahmen.$id";
     page: "/api/einnahmen/:id";
   };
+  "routes/api.companies.$id.buchungkategorien.ts": {
+    id: "routes/api.companies.$id.buchungkategorien";
+    page: "/api/companies/:id/buchungkategorien";
+  };
+  "routes/api.companies.$id.buchungkategorien.$katId.ts": {
+    id: "routes/api.companies.$id.buchungkategorien.$katId";
+    page: "/api/companies/:id/buchungkategorien/:katId";
+  };
   "routes/api.anlagevermoegen.ts": {
     id: "routes/api.anlagevermoegen";
     page: "/api/anlagevermoegen";
@@ -432,7 +469,9 @@ type RouteModules = {
   "routes/companies.$id.reports": typeof import("./app/routes/companies.$id.reports.tsx");
   "routes/companies.$id.bilanzen": typeof import("./app/routes/companies.$id.bilanzen.tsx");
   "routes/companies.$id.ausgaben": typeof import("./app/routes/companies.$id.ausgaben.tsx");
+  "routes/companies.$id.ausgaben.kategorien": typeof import("./app/routes/companies.$id.ausgaben.kategorien.tsx");
   "routes/companies.$id.einnahmen": typeof import("./app/routes/companies.$id.einnahmen.tsx");
+  "routes/companies.$id.einnahmen.kategorien": typeof import("./app/routes/companies.$id.einnahmen.kategorien.tsx");
   "routes/companies.$id.anlagevermoegen": typeof import("./app/routes/companies.$id.anlagevermoegen.tsx");
   "routes/companies.$id.money": typeof import("./app/routes/companies.$id.money.tsx");
   "routes/archiv": typeof import("./app/routes/archiv.tsx");
@@ -462,6 +501,8 @@ type RouteModules = {
   "routes/api.ausgaben.$id": typeof import("./app/routes/api.ausgaben.$id.ts");
   "routes/api.einnahmen": typeof import("./app/routes/api.einnahmen.ts");
   "routes/api.einnahmen.$id": typeof import("./app/routes/api.einnahmen.$id.ts");
+  "routes/api.companies.$id.buchungkategorien": typeof import("./app/routes/api.companies.$id.buchungkategorien.ts");
+  "routes/api.companies.$id.buchungkategorien.$katId": typeof import("./app/routes/api.companies.$id.buchungkategorien.$katId.ts");
   "routes/api.anlagevermoegen": typeof import("./app/routes/api.anlagevermoegen.ts");
   "routes/api.anlagevermoegen.$id": typeof import("./app/routes/api.anlagevermoegen.$id.ts");
 };

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Link, useLoaderData, useRevalidator } from "react-router";
 import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChevronLeft, Plus, Pencil, Trash2, Loader2, Banknote, Landmark } from "lucide-react";
 import { formatCurrency } from "@/lib/tax";
-import { AUSGABE_KATEGORIEN, KATEGORIE_LABELS, type AusgabeKategorieKey } from "@/lib/ausgaben";
+import { DEFAULT_AUSGABE_KATEGORIEN } from "@/lib/kategorie-defaults";
 
 export const handle = {
   breadcrumbs: (data: { companyId: string; companyName: string }) => [
@@ -18,6 +18,8 @@ export const handle = {
   ],
 };
 
+const MONAT_LABELS = ["Jan","Feb","Mär","Apr","Mai","Jun","Jul","Aug","Sep","Okt","Nov","Dez"];
+
 const STEUERSAETZE = [
   { label: "Keine (0 %)", value: 0 },
   { label: "7 %", value: 7 },
@@ -26,7 +28,7 @@ const STEUERSAETZE = [
 
 interface Ausgabe {
   id: string;
-  kategorie: AusgabeKategorieKey;
+  kategorie: string;
   betrag: number;
   steuersatz: number;
   zahlungsart: "KASSE" | "BANK";
@@ -35,7 +37,7 @@ interface Ausgabe {
 }
 
 const emptyForm = {
-  kategorie: "SONSTIGER_BETRIEBSBEDARF" as AusgabeKategorieKey,
+  kategorie: "",
   betrag: "",
   steuersatz: 19,
   zahlungsart: "BANK" as "KASSE" | "BANK",
@@ -50,6 +52,27 @@ export async function loader({ request, params }: { request: Request; params: { 
     select: { id: true, name: true },
   });
   if (!company) throw new Response("Not Found", { status: 404 });
+
+  // Auto-seed Standardkategorien wenn noch keine vorhanden
+  const katCount = await prisma.buchungKategorie.count({
+    where: { companyId: params.id, typ: "AUSGABE" },
+  });
+  if (katCount === 0) {
+    await prisma.buchungKategorie.createMany({
+      data: DEFAULT_AUSGABE_KATEGORIEN.map((name) => ({
+        companyId: params.id,
+        name,
+        typ: "AUSGABE",
+      })),
+      skipDuplicates: true,
+    });
+  }
+
+  const kategorien = await prisma.buchungKategorie.findMany({
+    where: { companyId: params.id, typ: "AUSGABE" },
+    orderBy: { name: "asc" },
+    select: { name: true },
+  });
 
   const year = new Date().getFullYear();
   const ausgaben = await prisma.buchung.findMany({
@@ -66,11 +89,12 @@ export async function loader({ request, params }: { request: Request; params: { 
     companyId: company.id,
     companyName: company.name,
     initialYear: year,
+    kategorien: kategorien.map((k) => k.name),
     ausgaben: ausgaben.map((a) => ({
       id: a.id,
-      kategorie: (a.kategorie || "SONSTIGER_BETRIEBSBEDARF") as AusgabeKategorieKey,
+      kategorie: a.kategorie ?? "",
       betrag: Number(a.amount),
-      steuersatz: a.steuersatz || 19,
+      steuersatz: (a.steuersatz as number | null) ?? 19,
       zahlungsart: (a.zahlungsart as "KASSE" | "BANK") || "BANK",
       datum: a.date.toISOString(),
       beschreibung: a.description,
@@ -79,7 +103,7 @@ export async function loader({ request, params }: { request: Request; params: { 
 }
 
 export default function AusgabenPage() {
-  const { ausgaben: initialAusgaben, companyId, companyName, initialYear } =
+  const { ausgaben: initialAusgaben, companyId, companyName, initialYear, kategorien } =
     useLoaderData<typeof loader>();
   const { revalidate } = useRevalidator();
 
@@ -92,6 +116,7 @@ export default function AusgabenPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [form, setForm] = useState(emptyForm);
+  const [cellModal, setCellModal] = useState<{ kategorie: string; monat: number } | null>(null);
 
   const years = Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - i);
 
@@ -99,14 +124,22 @@ export default function AusgabenPage() {
     setYear(y);
     setLoadingYear(true);
     const res = await fetch(`/api/ausgaben?companyId=${companyId}&year=${y}`);
-    const data: Ausgabe[] = await res.json();
-    setAusgaben(data);
+    const raw: Array<Record<string, unknown>> = await res.json();
+    setAusgaben(raw.map((a) => ({
+      id: a.id as string,
+      kategorie: (a.kategorie as string) ?? "",
+      betrag: Number(a.amount),
+      steuersatz: (a.steuersatz as number | null) ?? 19,
+      zahlungsart: ((a.zahlungsart as string) || "BANK") as "KASSE" | "BANK",
+      datum: a.date as string,
+      beschreibung: (a.description as string | null) ?? null,
+    })));
     setLoadingYear(false);
   }
 
   function openCreate() {
     setEditingId(null);
-    setForm({ ...emptyForm, datum: `${year}-01-01` });
+    setForm({ ...emptyForm, datum: `${year}-01-01`, kategorie: kategorien[0] ?? "" });
     setDialogOpen(true);
   }
 
@@ -173,6 +206,25 @@ export default function AusgabenPage() {
     return s + (rate > 0 ? Math.round((a.betrag / (1 + rate)) * rate * 100) / 100 : 0);
   }, 0);
 
+  const activeMonate = useMemo(() => {
+    const set = new Set(ausgaben.map((a) => new Date(a.datum).getMonth()));
+    return Array.from({ length: 12 }, (_, i) => i).filter((m) => set.has(m));
+  }, [ausgaben]);
+
+  const pivot = useMemo(() => {
+    const map = new Map<string, Map<number, Ausgabe[]>>();
+    for (const a of ausgaben) {
+      if (!map.has(a.kategorie)) map.set(a.kategorie, new Map());
+      const monat = new Date(a.datum).getMonth();
+      const inner = map.get(a.kategorie)!;
+      if (!inner.has(monat)) inner.set(monat, []);
+      inner.get(monat)!.push(a);
+    }
+    return map;
+  }, [ausgaben]);
+
+  const activeKategorien = useMemo(() => Array.from(pivot.keys()), [pivot]);
+
   const formValid = form.kategorie && parseFloat(form.betrag) > 0 && form.datum.length > 0;
 
   return (
@@ -197,6 +249,12 @@ export default function AusgabenPage() {
           >
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
+          <Link
+            to={`/companies/${companyId}/ausgaben/kategorien`}
+            className="text-sm text-gray-500 hover:text-gray-700 underline-offset-2 hover:underline"
+          >
+            Kategorien verwalten
+          </Link>
           <Button onClick={openCreate} className="bg-rose-600 hover:bg-rose-700">
             <Plus className="h-4 w-4" />
             Neue Ausgabe
@@ -238,7 +296,7 @@ export default function AusgabenPage() {
         </Card>
       </div>
 
-      {/* Liste */}
+      {/* Pivottabelle */}
       {loadingYear ? (
         <div className="flex items-center justify-center py-16 text-gray-400">
           <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -260,77 +318,42 @@ export default function AusgabenPage() {
             <table className="w-full text-sm border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
-                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Datum</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Kategorie</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Brutto</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">MwSt.</th>
-                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Netto</th>
-                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Zahlung</th>
-                  <th className="px-3 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Notiz</th>
-                  <th className="px-3 py-2.5 w-16" />
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Kategorie</th>
+                  {activeMonate.map((m) => (
+                    <th key={m} className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                      {MONAT_LABELS[m]}
+                    </th>
+                  ))}
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Gesamt</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {ausgaben.map((a) => {
-                  const rate = a.steuersatz / 100;
-                  const netto = rate > 0 ? Math.round((a.betrag / (1 + rate)) * 100) / 100 : a.betrag;
+                {activeKategorien.map((kat) => {
+                  const katMap = pivot.get(kat)!;
+                  const katGesamt = [...katMap.values()].flat().reduce((s, a) => s + a.betrag, 0);
                   return (
-                    <tr key={a.id} className="hover:bg-slate-50/60 group">
-                      <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">
-                        {new Date(a.datum).toLocaleDateString("de-DE")}
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-700 font-medium">
-                        {KATEGORIE_LABELS[a.kategorie]}
-                      </td>
-                      <td className="px-3 py-2.5 text-right font-medium text-rose-700 whitespace-nowrap">
-                        {formatCurrency(a.betrag)}
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        {a.steuersatz > 0 ? (
-                          <Badge variant="secondary">{a.steuersatz} %</Badge>
-                        ) : (
-                          <span className="text-slate-300 text-xs">—</span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-right text-slate-600 whitespace-nowrap">
-                        {formatCurrency(netto)}
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        {a.zahlungsart === "BANK" ? (
-                          <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
-                            <Landmark className="h-3 w-3" /> Bank
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
-                            <Banknote className="h-3 w-3" /> Kasse
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-3 py-2.5 text-slate-400 text-xs truncate max-w-xs">
-                        {a.beschreibung ?? ""}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                          <button
-                            onClick={() => openEdit(a)}
-                            className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700"
-                            title="Bearbeiten"
-                          >
-                            <Pencil className="h-3.5 w-3.5" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(a.id)}
-                            disabled={deleting === a.id}
-                            className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600"
-                            title="Löschen"
-                          >
-                            {deleting === a.id ? (
-                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    <tr key={kat} className="hover:bg-slate-50/60">
+                      <td className="px-4 py-2.5 text-slate-700 font-medium">{kat}</td>
+                      {activeMonate.map((m) => {
+                        const items = katMap.get(m);
+                        const sum = items?.reduce((s, a) => s + a.betrag, 0) ?? 0;
+                        return (
+                          <td key={m} className="px-3 py-2.5 text-right">
+                            {items ? (
+                              <button
+                                onClick={() => setCellModal({ kategorie: kat, monat: m })}
+                                className="text-rose-700 font-medium hover:underline cursor-pointer whitespace-nowrap"
+                              >
+                                {formatCurrency(sum)}
+                              </button>
                             ) : (
-                              <Trash2 className="h-3.5 w-3.5" />
+                              <span className="text-slate-300">—</span>
                             )}
-                          </button>
-                        </div>
+                          </td>
+                        );
+                      })}
+                      <td className="px-3 py-2.5 text-right font-bold text-rose-700 whitespace-nowrap">
+                        {formatCurrency(katGesamt)}
                       </td>
                     </tr>
                   );
@@ -338,19 +361,136 @@ export default function AusgabenPage() {
               </tbody>
               <tfoot>
                 <tr className="border-t-2 border-slate-300 bg-slate-50">
-                  <td colSpan={2} className="px-4 py-2.5 text-xs font-bold text-slate-700">Gesamt</td>
-                  <td className="px-3 py-2.5 text-right text-xs font-bold text-rose-600">{formatCurrency(gesamt)}</td>
-                  <td />
-                  <td className="px-3 py-2.5 text-right text-xs font-bold text-slate-600">
-                    {formatCurrency(gesamt - vorstGesamt)}
+                  <td className="px-4 py-2.5 text-xs font-bold text-slate-700">Gesamt</td>
+                  {activeMonate.map((m) => {
+                    const monatSum = ausgaben
+                      .filter((a) => new Date(a.datum).getMonth() === m)
+                      .reduce((s, a) => s + a.betrag, 0);
+                    return (
+                      <td key={m} className="px-3 py-2.5 text-right text-xs font-bold text-slate-700 whitespace-nowrap">
+                        {formatCurrency(monatSum)}
+                      </td>
+                    );
+                  })}
+                  <td className="px-3 py-2.5 text-right text-xs font-bold text-rose-600 whitespace-nowrap">
+                    {formatCurrency(gesamt)}
                   </td>
-                  <td colSpan={3} />
                 </tr>
               </tfoot>
             </table>
           </div>
         </Card>
       )}
+
+      {/* Zellen-Detail-Modal */}
+      <Dialog open={!!cellModal} onOpenChange={(o) => !o && setCellModal(null)}>
+        <DialogContent className="sm:max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>
+              {cellModal && `${cellModal.kategorie} – ${MONAT_LABELS[cellModal.monat]} ${year}`}
+            </DialogTitle>
+          </DialogHeader>
+          {cellModal && (() => {
+            const items = pivot.get(cellModal.kategorie)?.get(cellModal.monat) ?? [];
+            const monatGesamt = items.reduce((s, a) => s + a.betrag, 0);
+            const monatVorst = items.reduce((s, a) => {
+              const rate = a.steuersatz / 100;
+              return s + (rate > 0 ? Math.round((a.betrag / (1 + rate)) * rate * 100) / 100 : 0);
+            }, 0);
+            return (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm border-collapse">
+                  <thead>
+                    <tr className="border-b border-slate-200 bg-slate-50">
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Datum</th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Brutto</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">MwSt.</th>
+                      <th className="px-3 py-2 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Netto</th>
+                      <th className="px-3 py-2 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Zahlung</th>
+                      <th className="px-3 py-2 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Notiz</th>
+                      <th className="px-3 py-2 w-16" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {items.map((a) => {
+                      const rate = a.steuersatz / 100;
+                      const netto = rate > 0 ? Math.round((a.betrag / (1 + rate)) * 100) / 100 : a.betrag;
+                      return (
+                        <tr key={a.id} className="hover:bg-slate-50/60 group">
+                          <td className="px-3 py-2 text-slate-600 whitespace-nowrap">
+                            {new Date(a.datum).toLocaleDateString("de-DE")}
+                          </td>
+                          <td className="px-3 py-2 text-right font-medium text-rose-700 whitespace-nowrap">
+                            {formatCurrency(a.betrag)}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {a.steuersatz > 0 ? (
+                              <Badge variant="secondary">{a.steuersatz} %</Badge>
+                            ) : (
+                              <span className="text-slate-300 text-xs">—</span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-right text-slate-600 whitespace-nowrap">
+                            {formatCurrency(netto)}
+                          </td>
+                          <td className="px-3 py-2 text-center">
+                            {a.zahlungsart === "BANK" ? (
+                              <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
+                                <Landmark className="h-3 w-3" /> Bank
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+                                <Banknote className="h-3 w-3" /> Kasse
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2 text-slate-400 text-xs truncate max-w-[12rem]">
+                            {a.beschreibung ?? ""}
+                          </td>
+                          <td className="px-3 py-2">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <button
+                                onClick={() => { setCellModal(null); openEdit(a); }}
+                                className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+                                title="Bearbeiten"
+                              >
+                                <Pencil className="h-3.5 w-3.5" />
+                              </button>
+                              <button
+                                onClick={() => handleDelete(a.id)}
+                                disabled={deleting === a.id}
+                                className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600"
+                                title="Löschen"
+                              >
+                                {deleting === a.id ? (
+                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-3.5 w-3.5" />
+                                )}
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                  <tfoot>
+                    <tr className="border-t-2 border-slate-300 bg-slate-50">
+                      <td className="px-3 py-2 text-xs font-bold text-slate-700">Gesamt</td>
+                      <td className="px-3 py-2 text-right text-xs font-bold text-rose-600">{formatCurrency(monatGesamt)}</td>
+                      <td />
+                      <td className="px-3 py-2 text-right text-xs font-bold text-slate-600">
+                        {formatCurrency(monatGesamt - monatVorst)}
+                      </td>
+                      <td colSpan={3} />
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            );
+          })()}
+        </DialogContent>
+      </Dialog>
 
       {/* Dialog */}
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -394,11 +534,11 @@ export default function AusgabenPage() {
               </label>
               <select
                 value={form.kategorie}
-                onChange={(e) => setForm((f) => ({ ...f, kategorie: e.target.value as AusgabeKategorieKey }))}
+                onChange={(e) => setForm((f) => ({ ...f, kategorie: e.target.value }))}
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
               >
-                {AUSGABE_KATEGORIEN.map((k) => (
-                  <option key={k} value={k}>{KATEGORIE_LABELS[k]}</option>
+                {kategorien.map((k) => (
+                  <option key={k} value={k}>{k}</option>
                 ))}
               </select>
             </div>

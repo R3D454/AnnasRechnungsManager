@@ -19,7 +19,9 @@ export default [
     route("companies/:id/reports", "routes/companies.$id.reports.tsx"),
     route("companies/:id/bilanzen", "routes/companies.$id.bilanzen.tsx"),
     route("companies/:id/ausgaben", "routes/companies.$id.ausgaben.tsx"),
+    route("companies/:id/ausgaben/kategorien", "routes/companies.$id.ausgaben.kategorien.tsx"),
     route("companies/:id/einnahmen", "routes/companies.$id.einnahmen.tsx"),
+    route("companies/:id/einnahmen/kategorien", "routes/companies.$id.einnahmen.kategorien.tsx"),
     route("companies/:id/anlagevermoegen", "routes/companies.$id.anlagevermoegen.tsx"),
     route("companies/:id/money", "routes/companies.$id.money.tsx"),
     route("archiv", "routes/archiv.tsx"),
@@ -55,6 +57,8 @@ export default [
   route("api/ausgaben/:id", "routes/api.ausgaben.$id.ts"),
   route("api/einnahmen", "routes/api.einnahmen.ts"),
   route("api/einnahmen/:id", "routes/api.einnahmen.$id.ts"),
+  route("api/companies/:id/buchungkategorien", "routes/api.companies.$id.buchungkategorien.ts"),
+  route("api/companies/:id/buchungkategorien/:katId", "routes/api.companies.$id.buchungkategorien.$katId.ts"),
   route("api/anlagevermoegen", "routes/api.anlagevermoegen.ts"),
   route("api/anlagevermoegen/:id", "routes/api.anlagevermoegen.$id.ts"),
 
