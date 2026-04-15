@@ -1,17 +1,7 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
-import { z } from "zod";
-
-const customerSchema = z.object({
-  name: z.string().min(1),
-  taxId: z.string().optional(),
-  address: z.string().min(1),
-  zip: z.string().min(1),
-  city: z.string().min(1),
-  country: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
-});
+import { log } from "@/lib/logger.server";
+import { customerUpdateSchema } from "@/lib/schemas";
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
   const user = await getApiUser(request);
@@ -36,14 +26,16 @@ export async function action({ request, params }: { request: Request; params: { 
 
   if (request.method === "DELETE") {
     await prisma.customer.delete({ where: { id: params.id, company: { userId: user.id } } });
+    await log({ userId: user.id, action: "DELETE_CUSTOMER", entity: "Customer", entityId: params.id, request });
     return Response.json({ ok: true });
   }
 
   // PUT
   const body = await request.json();
-  const parsed = customerSchema.safeParse(body);
+  const parsed = customerUpdateSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.issues }, { status: 400 });
 
   const updated = await prisma.customer.update({ where: { id: params.id }, data: parsed.data });
+  await log({ userId: user.id, action: "UPDATE_CUSTOMER", entity: "Customer", entityId: params.id, request });
   return Response.json(updated);
 }

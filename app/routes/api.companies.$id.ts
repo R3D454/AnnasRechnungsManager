@@ -1,26 +1,7 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
 import { log } from "@/lib/logger.server";
-import { z } from "zod";
-
-const companySchema = z.object({
-  name: z.string().min(1),
-  legalForm: z.string().optional(),
-  taxId: z.string().optional(),
-  vatId: z.string().optional(),
-  address: z.string().min(1),
-  zip: z.string().min(1),
-  city: z.string().min(1),
-  country: z.string().optional(),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
-  website: z.string().optional(),
-  bankIban: z.string().optional(),
-  bankBic: z.string().optional(),
-  bankName: z.string().optional(),
-  invoicePrefix: z.string().optional(),
-  kleinunternehmer: z.boolean().optional(),
-});
+import { companyUpdateSchema } from "@/lib/schemas";
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
   const user = await getApiUser(request);
@@ -55,14 +36,17 @@ export async function action({ request, params }: { request: Request; params: { 
         archivedAt: archive ? new Date() : null,
       },
     });
+    const action = archive ? "ARCHIVE_COMPANY" : "UPDATE_COMPANY";
+    await log({ userId: user.id, action, entity: "Company", entityId: params.id, request });
     return Response.json({ ok: true });
   }
 
   // PUT
   const body = await request.json();
-  const parsed = companySchema.safeParse(body);
+  const parsed = companyUpdateSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.issues }, { status: 400 });
 
   const updated = await prisma.company.update({ where: { id: params.id }, data: parsed.data });
+  await log({ userId: user.id, action: "UPDATE_COMPANY", entity: "Company", entityId: params.id, request });
   return Response.json(updated);
 }

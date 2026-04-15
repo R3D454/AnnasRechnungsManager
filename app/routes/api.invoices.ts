@@ -1,33 +1,13 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
 import { generateInvoiceNumber } from "@/lib/invoice-number.server";
-import { z } from "zod";
+import { calcItemAmounts, calcInvoiceTotals, calcItemAmountsKleinunternehmer } from "@/lib/tax";
+import { log } from "@/lib/logger.server";
+import { invoiceSchema, invoiceItemSchema } from "@/lib/schemas";
 
-const itemSchema = z.object({
-  position: z.number().int(),
-  description: z.string().min(1),
-  quantity: z.number().positive(),
-  unit: z.string().optional(),
-  unitPrice: z.number(),
-  taxRate: z.number(),
-  netAmount: z.number(),
-  taxAmount: z.number(),
-  grossAmount: z.number(),
-});
+const itemSchema = invoiceItemSchema;
 
-const invoiceSchema = z.object({
-  companyId: z.string().min(1),
-  customerId: z.string().min(1),
-  issueDate: z.string(),
-  deliveryDate: z.string().optional(),
-  dueDate: z.string(),
-  notes: z.string().optional(),
-  kleinunternehmer: z.boolean().optional().default(false),
-  items: z.array(itemSchema).min(1),
-  netTotal: z.number(),
-  taxTotal: z.number(),
-  grossTotal: z.number(),
-});
+const invoiceCreateSchema = invoiceSchema;
 
 /**
  * Creates a new invoice for a given company.
@@ -67,13 +47,26 @@ export async function action({ request }: { request: Request }) {
   if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const parsed = invoiceSchema.safeParse(body);
+  const parsed = invoiceCreateSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.issues }, { status: 400 });
 
-  const { items, companyId, ...invoiceData } = parsed.data;
+  const { items, companyId, kleinunternehmer, ...invoiceData } = parsed.data;
 
   const company = await prisma.company.findFirst({ where: { id: companyId, userId: user.id } });
   if (!company) return Response.json({ error: "Company not found" }, { status: 404 });
+
+  // Use company's kleinunternehmer setting, fallback to request data
+  const isKleinunternehmer = kleinunternehmer ?? company.kleinunternehmer;
+
+  // Server-side recalculation of all amounts
+  const recalculatedItems = items.map(item => ({
+    ...item,
+    ...(isKleinunternehmer
+      ? calcItemAmountsKleinunternehmer(item.quantity, item.unitPrice)
+      : calcItemAmounts(item.quantity, item.unitPrice, item.taxRate)),
+  }));
+
+  const totals = calcInvoiceTotals(recalculatedItems);
 
   const number = await generateInvoiceNumber(companyId);
 
@@ -82,12 +75,31 @@ export async function action({ request }: { request: Request }) {
       ...invoiceData,
       number,
       companyId,
+      kleinunternehmer: isKleinunternehmer,
       issueDate: new Date(invoiceData.issueDate),
       deliveryDate: invoiceData.deliveryDate ? new Date(invoiceData.deliveryDate) : null,
       dueDate: new Date(invoiceData.dueDate),
-      items: { create: items },
+      netTotal: totals.netTotal,
+      taxTotal: totals.taxTotal,
+      grossTotal: totals.grossTotal,
+      items: { create: recalculatedItems },
     },
     include: { items: true, customer: true },
+  });
+
+  await log({
+    userId: user.id,
+    action: "CREATE_INVOICE",
+    entity: "Invoice",
+    entityId: invoice.id,
+    metadata: {
+      number: invoice.number,
+      customerId: invoice.customerId,
+      grossTotal: invoice.grossTotal.toString(),
+      itemCount: recalculatedItems.length,
+      kleinunternehmer: isKleinunternehmer,
+    },
+    request,
   });
 
   return Response.json(invoice, { status: 201 });

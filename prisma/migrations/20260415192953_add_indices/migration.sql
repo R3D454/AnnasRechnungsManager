@@ -1,0 +1,7 @@
+-- Indices already exist - this migration is a no-op to mark them as applied
+-- The following indices were added to schema.prisma and are already in the database:
+-- - invoices_status_idx on invoices(status)
+-- - invoices_dueDate_idx on invoices(dueDate)
+-- - invoices_deletedAt_idx on invoices(deletedAt)
+-- - customers_companyId_idx on customers(companyId) [via foreign key]
+-- - invoices_customerId_idx on invoices(customerId) [via foreign key]

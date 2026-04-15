@@ -1,9 +1,10 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
 import { generateInvoiceNumber } from "@/lib/invoice-number.server";
+import { calcItemAmounts, calcInvoiceTotals, calcItemAmountsKleinunternehmer } from "@/lib/tax";
 import { log } from "@/lib/logger.server";
 import { InvoiceStatus } from "@prisma/client";
-import { z } from "zod";
+import { invoiceUpdateSchema, invoiceStatusSchema, invoiceItemSchema } from "@/lib/schemas";
 
 async function getInvoice(id: string, userId: string) {
   return prisma.invoice.findFirst({
@@ -22,32 +23,7 @@ export async function loader({ request, params }: { request: Request; params: { 
   return Response.json(invoice);
 }
 
-const statusSchema = z.object({ status: z.nativeEnum(InvoiceStatus) });
-
-const itemSchema = z.object({
-  position: z.number().int(),
-  description: z.string().min(1),
-  quantity: z.number().positive(),
-  unit: z.string().optional(),
-  unitPrice: z.number(),
-  taxRate: z.number(),
-  netAmount: z.number(),
-  taxAmount: z.number(),
-  grossAmount: z.number(),
-});
-
-const updateSchema = z.object({
-  customerId: z.string().min(1),
-  issueDate: z.string(),
-  deliveryDate: z.string().optional(),
-  dueDate: z.string(),
-  notes: z.string().optional(),
-  kleinunternehmer: z.boolean().optional().default(false),
-  items: z.array(itemSchema).min(1),
-  netTotal: z.number().nonnegative(),
-  taxTotal: z.number().nonnegative(),
-  grossTotal: z.number().nonnegative(),
-});
+const statusSchema = invoiceStatusSchema;
 
 export async function action({ request, params }: { request: Request; params: { id: string } }) {
   const user = await getApiUser(request);
@@ -58,10 +34,24 @@ export async function action({ request, params }: { request: Request; params: { 
 
   if (request.method === "PUT") {
     const body = await request.json();
-    const parsed = updateSchema.safeParse(body);
+    const parsed = invoiceUpdateSchema.safeParse(body);
     if (!parsed.success) return Response.json({ error: parsed.error.issues }, { status: 400 });
 
-    const { items, ...invoiceData } = parsed.data;
+    const { items, kleinunternehmer, ...invoiceData } = parsed.data;
+
+    // Use provided kleinunternehmer or fall back to company setting
+    const isKleinunternehmer = kleinunternehmer ?? invoice.company.kleinunternehmer;
+
+    // Server-side recalculation of all amounts
+    const recalculatedItems = items.map(item => ({
+      ...item,
+      ...(isKleinunternehmer
+        ? calcItemAmountsKleinunternehmer(item.quantity, item.unitPrice)
+        : calcItemAmounts(item.quantity, item.unitPrice, item.taxRate)),
+    }));
+
+    const totals = calcInvoiceTotals(recalculatedItems);
+
     const updated = await prisma.$transaction(async (tx) => {
       await tx.invoiceItem.deleteMany({ where: { invoiceId: params.id } });
       return tx.invoice.update({
@@ -72,14 +62,31 @@ export async function action({ request, params }: { request: Request; params: { 
           deliveryDate: invoiceData.deliveryDate ? new Date(invoiceData.deliveryDate) : null,
           dueDate: new Date(invoiceData.dueDate),
           notes: invoiceData.notes ?? null,
-          kleinunternehmer: invoiceData.kleinunternehmer,
-          netTotal: invoiceData.netTotal,
-          taxTotal: invoiceData.taxTotal,
-          grossTotal: invoiceData.grossTotal,
-          items: { create: items },
+          kleinunternehmer: isKleinunternehmer,
+          netTotal: totals.netTotal,
+          taxTotal: totals.taxTotal,
+          grossTotal: totals.grossTotal,
+          items: { create: recalculatedItems },
         },
+        include: { items: true, customer: true, company: true },
       });
     });
+
+    await log({
+      userId: user.id,
+      action: "UPDATE_INVOICE",
+      entity: "Invoice",
+      entityId: params.id,
+      metadata: {
+        customerId: invoiceData.customerId,
+        oldGrossTotal: invoice.grossTotal.toString(),
+        newGrossTotal: totals.grossTotal.toString(),
+        itemCount: recalculatedItems.length,
+        kleinunternehmer: isKleinunternehmer,
+      },
+      request,
+    });
+
     return Response.json(updated);
   }
 
@@ -93,11 +100,22 @@ export async function action({ request, params }: { request: Request; params: { 
       );
     }
     await prisma.invoice.delete({ where: { id: params.id } });
-    await log({ userId: user.id, action: "DELETE_INVOICE", entity: "Invoice", entityId: params.id, request });
+    await log({
+      userId: user.id,
+      action: "DELETE_INVOICE",
+      entity: "Invoice",
+      entityId: params.id,
+      metadata: {
+        status: invoice.status,
+        grossTotal: invoice.grossTotal.toString(),
+        number: invoice.number,
+      },
+      request,
+    });
     return Response.json({ ok: true });
   }
 
-  // PATCH
+  // PATCH – Status change with validation
   const body = await request.json();
   const parsed = statusSchema.safeParse(body);
   if (!parsed.success) return Response.json({ error: parsed.error.issues }, { status: 400 });
@@ -105,10 +123,26 @@ export async function action({ request, params }: { request: Request; params: { 
   const newStatus = parsed.data.status;
   const oldStatus = invoice.status;
 
+  // Validate status transitions
+  const validTransitions: Record<InvoiceStatus, InvoiceStatus[]> = {
+    DRAFT: ["SENT", "CANCELLED", "DELETED"],
+    SENT: ["PAID", "CANCELLED", "DRAFT", "DELETED"],
+    PAID: ["CANCELLED", "DELETED"],
+    CANCELLED: ["DRAFT", "DELETED"],
+    DELETED: ["DRAFT"],
+  };
+
+  if (!validTransitions[oldStatus]?.includes(newStatus)) {
+    return Response.json(
+      { error: `Ungültiger Statuswechsel von ${oldStatus} zu ${newStatus}` },
+      { status: 400 }
+    );
+  }
+
   let numberUpdate: string | null | undefined = undefined;
   if (newStatus === "DELETED") {
     numberUpdate = null;
-  } else if (invoice.status === "DELETED") {
+  } else if (oldStatus === "DELETED") {
     numberUpdate = await generateInvoiceNumber(invoice.companyId);
   }
 
@@ -137,7 +171,18 @@ export async function action({ request, params }: { request: Request; params: { 
         deletedAt: null,
         ...(numberUpdate !== undefined && { number: numberUpdate }),
       },
+      include: { items: true, customer: true, company: true },
     });
+
+    await log({
+      userId: user.id,
+      action: "UPDATE_INVOICE_STATUS",
+      entity: "Invoice",
+      entityId: params.id,
+      metadata: { oldStatus, newStatus, buchungId: buchung.id },
+      request,
+    });
+
     return Response.json(updated);
   }
 
@@ -154,6 +199,17 @@ export async function action({ request, params }: { request: Request; params: { 
       deletedAt: newStatus === "DELETED" ? new Date() : null,
       ...(numberUpdate !== undefined && { number: numberUpdate }),
     },
+    include: { items: true, customer: true, company: true },
   });
+
+  await log({
+    userId: user.id,
+    action: "UPDATE_INVOICE_STATUS",
+    entity: "Invoice",
+    entityId: params.id,
+    metadata: { oldStatus, newStatus },
+    request,
+  });
+
   return Response.json(updated);
 }

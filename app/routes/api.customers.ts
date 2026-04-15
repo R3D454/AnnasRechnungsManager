@@ -1,18 +1,7 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
-import { z } from "zod";
-
-const customerSchema = z.object({
-  companyId: z.string().min(1),
-  name: z.string().min(1),
-  taxId: z.string().optional(),
-  address: z.string().min(1),
-  zip: z.string().min(1),
-  city: z.string().min(1),
-  country: z.string().optional().default("DE"),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
-});
+import { log } from "@/lib/logger.server";
+import { customerSchema } from "@/lib/schemas";
 
 export async function action({ request }: { request: Request }) {
   const user = await getApiUser(request);
@@ -28,5 +17,6 @@ export async function action({ request }: { request: Request }) {
   if (!company) return Response.json({ error: "Company not found" }, { status: 404 });
 
   const customer = await prisma.customer.create({ data: parsed.data });
+  await log({ userId: user.id, action: "CREATE_CUSTOMER", entity: "Customer", entityId: customer.id, request });
   return Response.json(customer, { status: 201 });
 }

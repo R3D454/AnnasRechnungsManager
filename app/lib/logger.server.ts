@@ -4,15 +4,24 @@ export type LogAction =
   | "LOGIN"
   | "LOGIN_FAILED"
   | "LOGOUT"
+  | "CHANGE_PASSWORD"
   | "CREATE_USER"
   | "UPDATE_USER"
   | "DELETE_USER"
   | "CREATE_COMPANY"
   | "UPDATE_COMPANY"
   | "DELETE_COMPANY"
+  | "ARCHIVE_COMPANY"
   | "CREATE_INVOICE"
   | "UPDATE_INVOICE"
-  | "DELETE_INVOICE";
+  | "DELETE_INVOICE"
+  | "UPDATE_INVOICE_STATUS"
+  | "CREATE_CUSTOMER"
+  | "UPDATE_CUSTOMER"
+  | "DELETE_CUSTOMER"
+  | "CREATE_SERVICE"
+  | "UPDATE_SERVICE"
+  | "DELETE_SERVICE";
 
 export async function log({
   userId,
@@ -42,7 +51,7 @@ export async function log({
         action,
         entity: entity ?? null,
         entityId: entityId ?? null,
-        metadata: metadata ?? undefined,
+        metadata: (metadata as any) ?? undefined,
         ipAddress: ipAddress ?? null,
       },
     });

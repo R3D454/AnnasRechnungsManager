@@ -1,24 +1,7 @@
 import { getApiUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
-import { z } from "zod";
-
-const companySchema = z.object({
-  name: z.string().min(1),
-  legalForm: z.string().optional(),
-  taxId: z.string().optional(),
-  address: z.string().min(1),
-  zip: z.string().min(1),
-  city: z.string().min(1),
-  country: z.string().optional().default("DE"),
-  email: z.string().email().optional().or(z.literal("")),
-  phone: z.string().optional(),
-  website: z.string().optional(),
-  bankIban: z.string().optional(),
-  bankBic: z.string().optional(),
-  bankName: z.string().optional(),
-  invoicePrefix: z.string().optional().default("RE"),
-  kleinunternehmer: z.boolean().optional().default(false),
-});
+import { log } from "@/lib/logger.server";
+import { companySchema } from "@/lib/schemas";
 
 export async function loader({ request }: { request: Request }) {
   const user = await getApiUser(request);
@@ -46,6 +29,8 @@ export async function action({ request }: { request: Request }) {
   const company = await prisma.company.create({
     data: { ...parsed.data, userId: user.id },
   });
+
+  await log({ userId: user.id, action: "CREATE_COMPANY", entity: "Company", entityId: company.id, request });
 
   return Response.json(company, { status: 201 });
 }

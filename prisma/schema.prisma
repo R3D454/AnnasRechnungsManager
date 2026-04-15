@@ -159,6 +159,7 @@ model Customer {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  @@index([companyId])
   @@map("customers")
 }
 
@@ -186,6 +187,10 @@ model Invoice {
   deletedAt         DateTime?
 
   @@unique([companyId, number])
+  @@index([status])
+  @@index([dueDate])
+  @@index([customerId])
+  @@index([deletedAt])
   @@map("invoices")
 }
 
