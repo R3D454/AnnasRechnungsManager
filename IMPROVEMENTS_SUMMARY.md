@@ -1,4 +1,5 @@
 
+
 # Verbesserungen implementiert – Annas Rechnungsmanager
 
 Datum: 15. April 2026  

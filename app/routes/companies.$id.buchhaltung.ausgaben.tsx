@@ -8,13 +8,14 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChevronLeft, Plus, Pencil, Trash2, Loader2, Banknote, Landmark } from "lucide-react";
 import { formatCurrency } from "@/lib/tax";
-import { DEFAULT_EINNAHME_KATEGORIEN } from "@/lib/kategorie-defaults";
+import { DEFAULT_AUSGABE_KATEGORIEN } from "@/lib/kategorie-defaults";
 
 export const handle = {
   breadcrumbs: (data: { companyId: string; companyName: string }) => [
     { label: "Mandanten", href: "/companies" },
     { label: data.companyName, href: `/companies/${data.companyId}` },
-    { label: "Sonstige Einnahmen" },
+    { label: "Buchhaltung", href: `/companies/${data.companyId}/buchhaltung/bilanzen` },
+    { label: "Betriebsausgaben" },
   ],
 };
 
@@ -26,7 +27,7 @@ const STEUERSAETZE = [
   { label: "19 %", value: 19 },
 ];
 
-interface Einnahme {
+interface Ausgabe {
   id: string;
   kategorie: string;
   betrag: number;
@@ -39,7 +40,7 @@ interface Einnahme {
 const emptyForm = {
   kategorie: "",
   betrag: "",
-  steuersatz: 0,
+  steuersatz: 19,
   zahlungsart: "BANK" as "KASSE" | "BANK",
   datum: new Date().toISOString().slice(0, 10),
   beschreibung: "",
@@ -55,30 +56,30 @@ export async function loader({ request, params }: { request: Request; params: { 
 
   // Auto-seed Standardkategorien wenn noch keine vorhanden
   const katCount = await prisma.buchungKategorie.count({
-    where: { companyId: params.id, typ: "EINNAHME" },
+    where: { companyId: params.id, typ: "AUSGABE" },
   });
   if (katCount === 0) {
     await prisma.buchungKategorie.createMany({
-      data: DEFAULT_EINNAHME_KATEGORIEN.map((name) => ({
+      data: DEFAULT_AUSGABE_KATEGORIEN.map((name) => ({
         companyId: params.id,
         name,
-        typ: "EINNAHME",
+        typ: "AUSGABE",
       })),
       skipDuplicates: true,
     });
   }
 
   const kategorien = await prisma.buchungKategorie.findMany({
-    where: { companyId: params.id, typ: "EINNAHME" },
+    where: { companyId: params.id, typ: "AUSGABE" },
     orderBy: { name: "asc" },
     select: { name: true },
   });
 
   const year = new Date().getFullYear();
-  const einnahmen = await prisma.buchung.findMany({
+  const ausgaben = await prisma.buchung.findMany({
     where: {
       companyId: params.id,
-      type: "EINLAGE",
+      type: "ENTNAHME",
       isBusinessRecord: true,
       date: { gte: new Date(`${year}-01-01`), lt: new Date(`${year + 1}-01-01`) },
     },
@@ -90,25 +91,25 @@ export async function loader({ request, params }: { request: Request; params: { 
     companyName: company.name,
     initialYear: year,
     kategorien: kategorien.map((k) => k.name),
-    einnahmen: einnahmen.map((e) => ({
-      id: e.id,
-      kategorie: e.kategorie ?? "",
-      betrag: Number(e.amount),
-      steuersatz: (e.steuersatz as number | null) ?? 0,
-      zahlungsart: (e.zahlungsart as "KASSE" | "BANK") || "BANK",
-      datum: e.date.toISOString(),
-      beschreibung: e.description,
+    ausgaben: ausgaben.map((a) => ({
+      id: a.id,
+      kategorie: a.kategorie ?? "",
+      betrag: Number(a.amount),
+      steuersatz: (a.steuersatz as number | null) ?? 19,
+      zahlungsart: (a.zahlungsart as "KASSE" | "BANK") || "BANK",
+      datum: a.date.toISOString(),
+      beschreibung: a.description,
     })),
   };
 }
 
-export default function EinnahmenPage() {
-  const { einnahmen: initialEinnahmen, companyId, companyName, initialYear, kategorien } =
+export default function AusgabenPage() {
+  const { ausgaben: initialAusgaben, companyId, companyName, initialYear, kategorien } =
     useLoaderData<typeof loader>();
   const { revalidate } = useRevalidator();
 
   const [year, setYear] = useState(initialYear);
-  const [einnahmen, setEinnahmen] = useState<Einnahme[]>(initialEinnahmen);
+  const [ausgaben, setAusgaben] = useState<Ausgabe[]>(initialAusgaben);
   const [loadingYear, setLoadingYear] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
@@ -123,16 +124,16 @@ export default function EinnahmenPage() {
   async function loadYear(y: number) {
     setYear(y);
     setLoadingYear(true);
-    const res = await fetch(`/api/einnahmen?companyId=${companyId}&year=${y}`);
+    const res = await fetch(`/api/ausgaben?companyId=${companyId}&year=${y}`);
     const raw: Array<Record<string, unknown>> = await res.json();
-    setEinnahmen(raw.map((e) => ({
-      id: e.id as string,
-      kategorie: (e.kategorie as string) ?? "",
-      betrag: Number(e.amount),
-      steuersatz: (e.steuersatz as number | null) ?? 0,
-      zahlungsart: ((e.zahlungsart as string) || "BANK") as "KASSE" | "BANK",
-      datum: e.date as string,
-      beschreibung: (e.description as string | null) ?? null,
+    setAusgaben(raw.map((a) => ({
+      id: a.id as string,
+      kategorie: (a.kategorie as string) ?? "",
+      betrag: Number(a.amount),
+      steuersatz: (a.steuersatz as number | null) ?? 19,
+      zahlungsart: ((a.zahlungsart as string) || "BANK") as "KASSE" | "BANK",
+      datum: a.date as string,
+      beschreibung: (a.description as string | null) ?? null,
     })));
     setLoadingYear(false);
   }
@@ -143,15 +144,15 @@ export default function EinnahmenPage() {
     setDialogOpen(true);
   }
 
-  function openEdit(e: Einnahme) {
-    setEditingId(e.id);
+  function openEdit(a: Ausgabe) {
+    setEditingId(a.id);
     setForm({
-      kategorie: e.kategorie,
-      betrag: String(e.betrag),
-      steuersatz: e.steuersatz,
-      zahlungsart: e.zahlungsart,
-      datum: e.datum.slice(0, 10),
-      beschreibung: e.beschreibung ?? "",
+      kategorie: a.kategorie,
+      betrag: String(a.betrag),
+      steuersatz: a.steuersatz,
+      zahlungsart: a.zahlungsart,
+      datum: a.datum.slice(0, 10),
+      beschreibung: a.beschreibung ?? "",
     });
     setDialogOpen(true);
   }
@@ -168,13 +169,13 @@ export default function EinnahmenPage() {
     };
     try {
       if (editingId) {
-        await fetch(`/api/einnahmen/${editingId}`, {
+        await fetch(`/api/ausgaben/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       } else {
-        await fetch("/api/einnahmen", {
+        await fetch("/api/ausgaben", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...payload, companyId }),
@@ -191,37 +192,37 @@ export default function EinnahmenPage() {
   async function handleDelete(id: string) {
     if (!confirm("Eintrag wirklich löschen?")) return;
     setDeleting(id);
-    await fetch(`/api/einnahmen/${id}`, { method: "DELETE" });
+    await fetch(`/api/ausgaben/${id}`, { method: "DELETE" });
     setDeleting(null);
     await loadYear(year);
     revalidate();
   }
 
   // Berechnungen
-  const gesamt = einnahmen.reduce((s, e) => s + e.betrag, 0);
-  const kasseGesamt = einnahmen.filter((e) => e.zahlungsart === "KASSE").reduce((s, e) => s + e.betrag, 0);
-  const bankGesamt = einnahmen.filter((e) => e.zahlungsart === "BANK").reduce((s, e) => s + e.betrag, 0);
-  const ustGesamt = einnahmen.reduce((s, e) => {
-    const rate = e.steuersatz / 100;
-    return s + (rate > 0 ? Math.round((e.betrag / (1 + rate)) * rate * 100) / 100 : 0);
+  const gesamt = ausgaben.reduce((s, a) => s + a.betrag, 0);
+  const kasseGesamt = ausgaben.filter((a) => a.zahlungsart === "KASSE").reduce((s, a) => s + a.betrag, 0);
+  const bankGesamt = ausgaben.filter((a) => a.zahlungsart === "BANK").reduce((s, a) => s + a.betrag, 0);
+  const vorstGesamt = ausgaben.reduce((s, a) => {
+    const rate = a.steuersatz / 100;
+    return s + (rate > 0 ? Math.round((a.betrag / (1 + rate)) * rate * 100) / 100 : 0);
   }, 0);
 
   const activeMonate = useMemo(() => {
-    const set = new Set(einnahmen.map((e) => new Date(e.datum).getMonth()));
+    const set = new Set(ausgaben.map((a) => new Date(a.datum).getMonth()));
     return Array.from({ length: 12 }, (_, i) => i).filter((m) => set.has(m));
-  }, [einnahmen]);
+  }, [ausgaben]);
 
   const pivot = useMemo(() => {
-    const map = new Map<string, Map<number, Einnahme[]>>();
-    for (const e of einnahmen) {
-      if (!map.has(e.kategorie)) map.set(e.kategorie, new Map());
-      const monat = new Date(e.datum).getMonth();
-      const inner = map.get(e.kategorie)!;
+    const map = new Map<string, Map<number, Ausgabe[]>>();
+    for (const a of ausgaben) {
+      if (!map.has(a.kategorie)) map.set(a.kategorie, new Map());
+      const monat = new Date(a.datum).getMonth();
+      const inner = map.get(a.kategorie)!;
       if (!inner.has(monat)) inner.set(monat, []);
-      inner.get(monat)!.push(e);
+      inner.get(monat)!.push(a);
     }
     return map;
-  }, [einnahmen]);
+  }, [ausgaben]);
 
   const activeKategorien = useMemo(() => Array.from(pivot.keys()), [pivot]);
 
@@ -238,26 +239,26 @@ export default function EinnahmenPage() {
 
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Sonstige Einnahmen</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Betriebsausgaben</h1>
           <p className="text-gray-500 mt-1">{companyName} · {year}</p>
         </div>
         <div className="flex items-center gap-3">
           <select
             value={year}
             onChange={(e) => loadYear(Number(e.target.value))}
-            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
           >
             {years.map((y) => <option key={y} value={y}>{y}</option>)}
           </select>
           <Link
-            to={`/companies/${companyId}/einnahmen/kategorien`}
+            to={`/companies/${companyId}/ausgaben/kategorien`}
             className="text-sm text-gray-500 hover:text-gray-700 underline-offset-2 hover:underline"
           >
             Kategorien verwalten
           </Link>
-          <Button onClick={openCreate} className="bg-emerald-600 hover:bg-emerald-700">
+          <Button onClick={openCreate} className="bg-rose-600 hover:bg-rose-700">
             <Plus className="h-4 w-4" />
-            Neue Einnahme
+            Neue Ausgabe
           </Button>
         </div>
       </div>
@@ -267,7 +268,7 @@ export default function EinnahmenPage() {
         <Card>
           <CardContent className="pt-5 pb-5">
             <p className="text-xs text-gray-500 mb-1">Gesamt {year}</p>
-            <p className="text-xl font-bold text-emerald-600">{formatCurrency(gesamt)}</p>
+            <p className="text-xl font-bold text-rose-600">{formatCurrency(gesamt)}</p>
           </CardContent>
         </Card>
         <Card>
@@ -290,8 +291,8 @@ export default function EinnahmenPage() {
         </Card>
         <Card>
           <CardContent className="pt-5 pb-5">
-            <p className="text-xs text-gray-500 mb-1">Umsatzsteuer (enthalten)</p>
-            <p className="text-xl font-bold text-amber-600">{formatCurrency(ustGesamt)}</p>
+            <p className="text-xs text-gray-500 mb-1">Vorsteuer (enthalten)</p>
+            <p className="text-xl font-bold text-amber-600">{formatCurrency(vorstGesamt)}</p>
           </CardContent>
         </Card>
       </div>
@@ -300,15 +301,15 @@ export default function EinnahmenPage() {
       {loadingYear ? (
         <div className="flex items-center justify-center py-16 text-gray-400">
           <Loader2 className="h-6 w-6 animate-spin mr-2" />
-          Lade Einnahmen...
+          Lade Ausgaben...
         </div>
-      ) : einnahmen.length === 0 ? (
+      ) : ausgaben.length === 0 ? (
         <Card>
           <CardContent className="py-16 text-center text-gray-400">
-            <p className="text-sm">Noch keine Einnahmen für {year} erfasst.</p>
+            <p className="text-sm">Noch keine Ausgaben für {year} erfasst.</p>
             <Button variant="outline" className="mt-4" onClick={openCreate}>
               <Plus className="h-4 w-4" />
-              Erste Einnahme hinzufügen
+              Erste Ausgabe hinzufügen
             </Button>
           </CardContent>
         </Card>
@@ -330,19 +331,19 @@ export default function EinnahmenPage() {
               <tbody className="divide-y divide-slate-100">
                 {activeKategorien.map((kat) => {
                   const katMap = pivot.get(kat)!;
-                  const katGesamt = [...katMap.values()].flat().reduce((s, e) => s + e.betrag, 0);
+                  const katGesamt = [...katMap.values()].flat().reduce((s, a) => s + a.betrag, 0);
                   return (
                     <tr key={kat} className="hover:bg-slate-50/60">
                       <td className="px-4 py-2.5 text-slate-700 font-medium">{kat}</td>
                       {activeMonate.map((m) => {
                         const items = katMap.get(m);
-                        const sum = items?.reduce((s, e) => s + e.betrag, 0) ?? 0;
+                        const sum = items?.reduce((s, a) => s + a.betrag, 0) ?? 0;
                         return (
                           <td key={m} className="px-3 py-2.5 text-right">
                             {items ? (
                               <button
                                 onClick={() => setCellModal({ kategorie: kat, monat: m })}
-                                className="text-emerald-700 font-medium hover:underline cursor-pointer whitespace-nowrap"
+                                className="text-rose-700 font-medium hover:underline cursor-pointer whitespace-nowrap"
                               >
                                 {formatCurrency(sum)}
                               </button>
@@ -352,7 +353,7 @@ export default function EinnahmenPage() {
                           </td>
                         );
                       })}
-                      <td className="px-3 py-2.5 text-right font-bold text-emerald-700 whitespace-nowrap">
+                      <td className="px-3 py-2.5 text-right font-bold text-rose-700 whitespace-nowrap">
                         {formatCurrency(katGesamt)}
                       </td>
                     </tr>
@@ -363,16 +364,16 @@ export default function EinnahmenPage() {
                 <tr className="border-t-2 border-slate-300 bg-slate-50">
                   <td className="px-4 py-2.5 text-xs font-bold text-slate-700">Gesamt</td>
                   {activeMonate.map((m) => {
-                    const monatSum = einnahmen
-                      .filter((e) => new Date(e.datum).getMonth() === m)
-                      .reduce((s, e) => s + e.betrag, 0);
+                    const monatSum = ausgaben
+                      .filter((a) => new Date(a.datum).getMonth() === m)
+                      .reduce((s, a) => s + a.betrag, 0);
                     return (
                       <td key={m} className="px-3 py-2.5 text-right text-xs font-bold text-slate-700 whitespace-nowrap">
                         {formatCurrency(monatSum)}
                       </td>
                     );
                   })}
-                  <td className="px-3 py-2.5 text-right text-xs font-bold text-emerald-600 whitespace-nowrap">
+                  <td className="px-3 py-2.5 text-right text-xs font-bold text-rose-600 whitespace-nowrap">
                     {formatCurrency(gesamt)}
                   </td>
                 </tr>
@@ -392,10 +393,10 @@ export default function EinnahmenPage() {
           </DialogHeader>
           {cellModal && (() => {
             const items = pivot.get(cellModal.kategorie)?.get(cellModal.monat) ?? [];
-            const monatGesamt = items.reduce((s, e) => s + e.betrag, 0);
-            const monatUst = items.reduce((s, e) => {
-              const rate = e.steuersatz / 100;
-              return s + (rate > 0 ? Math.round((e.betrag / (1 + rate)) * rate * 100) / 100 : 0);
+            const monatGesamt = items.reduce((s, a) => s + a.betrag, 0);
+            const monatVorst = items.reduce((s, a) => {
+              const rate = a.steuersatz / 100;
+              return s + (rate > 0 ? Math.round((a.betrag / (1 + rate)) * rate * 100) / 100 : 0);
             }, 0);
             return (
               <div className="overflow-x-auto">
@@ -412,20 +413,20 @@ export default function EinnahmenPage() {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100">
-                    {items.map((e) => {
-                      const rate = e.steuersatz / 100;
-                      const netto = rate > 0 ? Math.round((e.betrag / (1 + rate)) * 100) / 100 : e.betrag;
+                    {items.map((a) => {
+                      const rate = a.steuersatz / 100;
+                      const netto = rate > 0 ? Math.round((a.betrag / (1 + rate)) * 100) / 100 : a.betrag;
                       return (
-                        <tr key={e.id} className="hover:bg-slate-50/60 group">
+                        <tr key={a.id} className="hover:bg-slate-50/60 group">
                           <td className="px-3 py-2 text-slate-600 whitespace-nowrap">
-                            {new Date(e.datum).toLocaleDateString("de-DE")}
+                            {new Date(a.datum).toLocaleDateString("de-DE")}
                           </td>
-                          <td className="px-3 py-2 text-right font-medium text-emerald-700 whitespace-nowrap">
-                            {formatCurrency(e.betrag)}
+                          <td className="px-3 py-2 text-right font-medium text-rose-700 whitespace-nowrap">
+                            {formatCurrency(a.betrag)}
                           </td>
                           <td className="px-3 py-2 text-center">
-                            {e.steuersatz > 0 ? (
-                              <Badge variant="secondary">{e.steuersatz} %</Badge>
+                            {a.steuersatz > 0 ? (
+                              <Badge variant="secondary">{a.steuersatz} %</Badge>
                             ) : (
                               <span className="text-slate-300 text-xs">—</span>
                             )}
@@ -434,7 +435,7 @@ export default function EinnahmenPage() {
                             {formatCurrency(netto)}
                           </td>
                           <td className="px-3 py-2 text-center">
-                            {e.zahlungsart === "BANK" ? (
+                            {a.zahlungsart === "BANK" ? (
                               <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
                                 <Landmark className="h-3 w-3" /> Bank
                               </span>
@@ -445,24 +446,24 @@ export default function EinnahmenPage() {
                             )}
                           </td>
                           <td className="px-3 py-2 text-slate-400 text-xs truncate max-w-[12rem]">
-                            {e.beschreibung ?? ""}
+                            {a.beschreibung ?? ""}
                           </td>
                           <td className="px-3 py-2">
                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                               <button
-                                onClick={() => { setCellModal(null); openEdit(e); }}
+                                onClick={() => { setCellModal(null); openEdit(a); }}
                                 className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700"
                                 title="Bearbeiten"
                               >
                                 <Pencil className="h-3.5 w-3.5" />
                               </button>
                               <button
-                                onClick={() => handleDelete(e.id)}
-                                disabled={deleting === e.id}
+                                onClick={() => handleDelete(a.id)}
+                                disabled={deleting === a.id}
                                 className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600"
                                 title="Löschen"
                               >
-                                {deleting === e.id ? (
+                                {deleting === a.id ? (
                                   <Loader2 className="h-3.5 w-3.5 animate-spin" />
                                 ) : (
                                   <Trash2 className="h-3.5 w-3.5" />
@@ -477,10 +478,10 @@ export default function EinnahmenPage() {
                   <tfoot>
                     <tr className="border-t-2 border-slate-300 bg-slate-50">
                       <td className="px-3 py-2 text-xs font-bold text-slate-700">Gesamt</td>
-                      <td className="px-3 py-2 text-right text-xs font-bold text-emerald-600">{formatCurrency(monatGesamt)}</td>
+                      <td className="px-3 py-2 text-right text-xs font-bold text-rose-600">{formatCurrency(monatGesamt)}</td>
                       <td />
                       <td className="px-3 py-2 text-right text-xs font-bold text-slate-600">
-                        {formatCurrency(monatGesamt - monatUst)}
+                        {formatCurrency(monatGesamt - monatVorst)}
                       </td>
                       <td colSpan={3} />
                     </tr>
@@ -496,7 +497,7 @@ export default function EinnahmenPage() {
       <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>{editingId ? "Einnahme bearbeiten" : "Neue Einnahme"}</DialogTitle>
+            <DialogTitle>{editingId ? "Ausgabe bearbeiten" : "Neue Ausgabe"}</DialogTitle>
           </DialogHeader>
 
           <div className="grid gap-4 py-2">
@@ -509,7 +510,7 @@ export default function EinnahmenPage() {
                   type="date"
                   value={form.datum}
                   onChange={(e) => setForm((f) => ({ ...f, datum: e.target.value }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
               <div>
@@ -523,7 +524,7 @@ export default function EinnahmenPage() {
                   value={form.betrag}
                   onChange={(e) => setForm((f) => ({ ...f, betrag: e.target.value }))}
                   placeholder="0,00"
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
                 />
               </div>
             </div>
@@ -535,7 +536,7 @@ export default function EinnahmenPage() {
               <select
                 value={form.kategorie}
                 onChange={(e) => setForm((f) => ({ ...f, kategorie: e.target.value }))}
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
               >
                 {kategorien.map((k) => (
                   <option key={k} value={k}>{k}</option>
@@ -571,7 +572,7 @@ export default function EinnahmenPage() {
                 <select
                   value={form.steuersatz}
                   onChange={(e) => setForm((f) => ({ ...f, steuersatz: Number(e.target.value) }))}
-                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
                 >
                   {STEUERSAETZE.map((s) => (
                     <option key={s.value} value={s.value}>{s.label}</option>
@@ -582,9 +583,9 @@ export default function EinnahmenPage() {
 
             {/* Vorschau Nettobetrag */}
             {parseFloat(form.betrag) > 0 && form.steuersatz > 0 && (
-              <div className="rounded-lg bg-emerald-50 border border-emerald-100 px-3 py-2 text-xs text-emerald-700 space-y-0.5">
+              <div className="rounded-lg bg-rose-50 border border-rose-100 px-3 py-2 text-xs text-rose-700 space-y-0.5">
                 <p><strong>Brutto:</strong> {formatCurrency(parseFloat(form.betrag))}</p>
-                <p><strong>USt. ({form.steuersatz} %):</strong> {formatCurrency(Math.round((parseFloat(form.betrag) / (1 + form.steuersatz / 100)) * (form.steuersatz / 100) * 100) / 100)}</p>
+                <p><strong>Vorsteuer ({form.steuersatz} %):</strong> {formatCurrency(Math.round((parseFloat(form.betrag) / (1 + form.steuersatz / 100)) * (form.steuersatz / 100) * 100) / 100)}</p>
                 <p><strong>Netto:</strong> {formatCurrency(Math.round((parseFloat(form.betrag) / (1 + form.steuersatz / 100)) * 100) / 100)}</p>
               </div>
             )}
@@ -596,7 +597,7 @@ export default function EinnahmenPage() {
                 value={form.beschreibung}
                 onChange={(e) => setForm((f) => ({ ...f, beschreibung: e.target.value }))}
                 placeholder="Optional"
-                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-rose-500"
               />
             </div>
           </div>
@@ -606,7 +607,7 @@ export default function EinnahmenPage() {
             <Button
               onClick={handleSave}
               disabled={saving || !formValid}
-              className="bg-emerald-600 hover:bg-emerald-700"
+              className="bg-rose-600 hover:bg-rose-700"
             >
               {saving && <Loader2 className="h-4 w-4 animate-spin" />}
               {editingId ? "Speichern" : "Hinzufügen"}

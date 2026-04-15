@@ -233,53 +233,13 @@ export default function CompanyPage() {
             </CardContent>
           </Card>
         </Link>
-        <Link to={`/companies/${id}/bilanzen`} className="block">
-          <Card className="hover:border-teal-200 hover:shadow-sm transition-all cursor-pointer">
+        <Link to={`/companies/${id}/buchhaltung/bilanzen`} className="block">
+          <Card className="hover:border-indigo-200 hover:shadow-sm transition-all cursor-pointer">
             <CardContent className="pt-4 pb-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-teal-50">
-                <Scale className="h-4 w-4 text-teal-600" />
+              <div className="p-2 rounded-lg bg-indigo-50">
+                <Briefcase className="h-4 w-4 text-indigo-600" />
               </div>
-              <span className="text-sm font-medium text-gray-700">Bilanzen</span>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link to={`/companies/${id}/ausgaben`} className="block">
-          <Card className="hover:border-rose-200 hover:shadow-sm transition-all cursor-pointer">
-            <CardContent className="pt-4 pb-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-rose-50">
-                <TrendingDown className="h-4 w-4 text-rose-600" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">Ausgaben</span>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link to={`/companies/${id}/einnahmen`} className="block">
-          <Card className="hover:border-emerald-200 hover:shadow-sm transition-all cursor-pointer">
-            <CardContent className="pt-4 pb-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-emerald-50">
-                <TrendingUp className="h-4 w-4 text-emerald-600" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">Einnahmen</span>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link to={`/companies/${id}/anlagevermoegen`} className="block">
-          <Card className="hover:border-violet-200 hover:shadow-sm transition-all cursor-pointer">
-            <CardContent className="pt-4 pb-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-violet-50">
-                <PackageSearch className="h-4 w-4 text-violet-600" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">Anlagevermögen</span>
-            </CardContent>
-          </Card>
-        </Link>
-        <Link to={`/companies/${id}/money`} className="block">
-          <Card className="hover:border-cyan-200 hover:shadow-sm transition-all cursor-pointer">
-            <CardContent className="pt-4 pb-4 flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-cyan-50">
-                <DollarSign className="h-4 w-4 text-cyan-600" />
-              </div>
-              <span className="text-sm font-medium text-gray-700">Finanzmittel</span>
+              <span className="text-sm font-medium text-gray-700">Buchhaltung</span>
             </CardContent>
           </Card>
         </Link>

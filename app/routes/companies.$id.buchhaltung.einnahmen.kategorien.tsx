@@ -12,7 +12,8 @@ export const handle = {
   breadcrumbs: (data: { companyId: string; companyName: string }) => [
     { label: "Mandanten", href: "/companies" },
     { label: data.companyName, href: `/companies/${data.companyId}` },
-    { label: "Sonstige Einnahmen", href: `/companies/${data.companyId}/einnahmen` },
+    { label: "Buchhaltung", href: `/companies/${data.companyId}/buchhaltung/bilanzen` },
+    { label: "Sonstige Einnahmen", href: `/companies/${data.companyId}/buchhaltung/einnahmen` },
     { label: "Kategorien" },
   ],
 };
@@ -149,7 +150,7 @@ export default function EinnahmenKategorienPage() {
   return (
     <div>
       <Link
-        to={`/companies/${companyId}/einnahmen`}
+        to={`/companies/${companyId}/buchhaltung/einnahmen`}
         className="inline-flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6"
       >
         <ChevronLeft className="h-4 w-4" /> Zurück zu Sonstige Einnahmen

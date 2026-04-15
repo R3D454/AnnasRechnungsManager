@@ -11,6 +11,7 @@ export const handle = {
   breadcrumbs: (data: { companyId: string; companyName: string }) => [
     { label: "Mandanten", href: "/companies" },
     { label: data.companyName, href: `/companies/${data.companyId}` },
+    { label: "Buchhaltung", href: `/companies/${data.companyId}/buchhaltung/bilanzen` },
     { label: "Bilanzen" },
   ],
 };
