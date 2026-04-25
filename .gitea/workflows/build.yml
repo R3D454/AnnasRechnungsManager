@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  REGISTRY: gitea.gitea.svc.cluster.local
+  REGISTRY: git.henryathome.home64.de
   IMAGE_NAME: ${{ gitea.repository }}
 
 jobs:
