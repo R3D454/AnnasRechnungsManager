@@ -105,6 +105,42 @@ Migrationen werden beim Start automatisch angewendet. `ADMIN_PASSWORD` ist nicht
 
 ---
 
+## CI/CD (Gitea Actions)
+
+Die Pipeline liegt in `.gitea/workflows/build.yml` und baut/pusht bei jedem Push auf `main` ein Docker-Image.
+
+### Voraussetzungen
+
+- Secret `REGISTRY_TOKEN` ist im Repository gesetzt
+- Der Token hat Berechtigung zum Push in die Gitea Container Registry
+- Der Registry-Host ist vom Runner aus erreichbar
+
+### Aktuelle Registry-Konfiguration
+
+Die Pipeline nutzt aktuell:
+
+- `REGISTRY=git.henryathome.home64.de`
+- Image-Name aus `${{ gitea.repository }}`
+- Tags: kurzer Commit-SHA + `latest` (auf Default-Branch)
+
+### Häufiger Fehler: `i/o timeout` beim Push
+
+Fehlerbild (vereinfacht):
+
+`failed to push ... Head "https://.../v2/.../blobs/...": dial tcp ...:443: i/o timeout`
+
+Typische Ursache:
+
+- Die Registry-Adresse ist intern (z. B. `*.svc.cluster.local`) und vom CI-Runner nicht erreichbar.
+
+Lösung:
+
+- In `.gitea/workflows/build.yml` einen extern erreichbaren Host bei `REGISTRY` eintragen.
+- Sicherstellen, dass DNS, Firewall und Portfreigaben vom Runner zur Registry passen.
+- Prüfen, ob HTTPS korrekt terminiert ist (Zertifikat/Reverse Proxy), da Buildx standardmäßig per HTTPS pusht.
+
+---
+
 ## Admin-Benutzer & Recovery
 
 ### Admin-Passwort setzen (im laufenden Container)
