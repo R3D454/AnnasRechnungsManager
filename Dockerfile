@@ -3,7 +3,11 @@ FROM node:alpine AS builder
 
 WORKDIR /app
 
-RUN apk add --no-cache openssl
+RUN if command -v apk >/dev/null 2>&1; then \
+            apk add --no-cache openssl; \
+        elif command -v apt-get >/dev/null 2>&1; then \
+            apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*; \
+        fi
 
 COPY package*.json ./
 RUN npm ci
@@ -25,7 +29,11 @@ WORKDIR /app
 
 ENV NODE_ENV=production
 
-RUN apk add --no-cache openssl
+RUN if command -v apk >/dev/null 2>&1; then \
+            apk add --no-cache openssl; \
+        elif command -v apt-get >/dev/null 2>&1; then \
+            apt-get update && apt-get install -y --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*; \
+        fi
 
 COPY package*.json ./
 RUN npm ci --omit=dev
