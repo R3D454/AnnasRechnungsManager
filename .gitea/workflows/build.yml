@@ -6,7 +6,7 @@ on:
       - main
 
 env:
-  #REGISTRY: ${{ gitea.server_url }}
+  REGISTRY: gitea.gitea.svc.cluster.local
   IMAGE_NAME: ${{ gitea.repository }}
 
 jobs:
