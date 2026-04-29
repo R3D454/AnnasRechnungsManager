@@ -59,6 +59,8 @@ export default [
   route("api/ausgaben/:id", "routes/api.ausgaben.$id.ts"),
   route("api/einnahmen", "routes/api.einnahmen.ts"),
   route("api/einnahmen/:id", "routes/api.einnahmen.$id.ts"),
+  route("api/einnahmen/:id/upload", "routes/api.einnahmen.$id.upload.ts"),
+  route("api/beleg/:userId/:filename", "routes/api.beleg.$userId.$filename.ts"),
   route("api/companies/:id/buchungkategorien", "routes/api.companies.$id.buchungkategorien.ts"),
   route("api/companies/:id/buchungkategorien/:katId", "routes/api.companies.$id.buchungkategorien.$katId.ts"),
   route("api/anlagevermoegen", "routes/api.anlagevermoegen.ts"),

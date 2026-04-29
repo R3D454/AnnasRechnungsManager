@@ -47,3 +47,6 @@ next-env.d.ts
 /db/data
 
 /graphify-out
+
+# Uploaded Belege (persistent volume in production)
+data/documents/

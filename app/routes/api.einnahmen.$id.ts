@@ -9,6 +9,7 @@ const updateSchema = z.object({
   zahlungsart: z.enum(["KASSE", "BANK"]).default("BANK"),
   datum: z.string().min(1),
   beschreibung: z.string().optional(),
+  belegUrl: z.string().optional(),
 });
 
 /**
@@ -48,6 +49,7 @@ export async function action({ request, params }: { request: Request; params: { 
       account: parsed.data.zahlungsart === "KASSE" ? "KASSE" : "BANK",
       date: new Date(parsed.data.datum),
       description: parsed.data.beschreibung,
+      belegUrl: parsed.data.belegUrl || null,
     },
   });
 

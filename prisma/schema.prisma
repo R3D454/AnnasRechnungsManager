@@ -115,6 +115,7 @@ model Buchung {
   steuersatz         Int?               // Tax rate: 0, 7, 19 (nullable for non-business records)
   zahlungsart        Zahlungsart?       // KASSE or BANK
   isBusinessRecord   Boolean            @default(false) // True if this is from Einnahme/Ausgabe
+  belegUrl           String?            @db.Text        // Optional receipt/document reference URL
   linkedBuchungId    String?
   linkedBuchung      Buchung?           @relation("BuchungLink", fields: [linkedBuchungId], references: [id], onDelete: SetNull)
   linkedFrom         Buchung[]          @relation("BuchungLink")

@@ -10,6 +10,7 @@ const createSchema = z.object({
   zahlungsart: z.enum(["KASSE", "BANK"]).default("BANK"),
   datum: z.string().min(1),
   beschreibung: z.string().optional(),
+  belegUrl: z.string().optional(),
 });
 
 /**
@@ -105,6 +106,7 @@ export async function action({ request }: { request: Request }) {
       steuersatz: parsed.data.steuersatz,
       zahlungsart: parsed.data.zahlungsart,
       isBusinessRecord: true,
+      belegUrl: parsed.data.belegUrl || null,
     },
   });
 

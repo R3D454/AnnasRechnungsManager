@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { Link, useLoaderData, useRevalidator } from "react-router";
 import { requireUser } from "@/session.server";
 import prisma from "@/lib/prisma.server";
@@ -6,9 +6,31 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { ChevronLeft, Plus, Pencil, Trash2, Loader2, Banknote, Landmark } from "lucide-react";
+import { ChevronLeft, Plus, Pencil, Trash2, Loader2, Banknote, Landmark, List, LayoutGrid, Paperclip, Upload, X, FileText } from "lucide-react";
 import { formatCurrency } from "@/lib/tax";
 import { DEFAULT_EINNAHME_KATEGORIEN } from "@/lib/kategorie-defaults";
+
+/** Converts stored belegUrl ("beleg:{userId}/{storedName}|{originalName}") to a viewable href. */
+function belegHref(belegUrl: string | null): string | null {
+  if (!belegUrl) return null;
+  if (belegUrl.startsWith("beleg:")) {
+    const rel = belegUrl.slice("beleg:".length); // "userId/storedName|originalName"
+    const [userId, rest] = rel.split("/");
+    const storedName = rest?.split("|")[0]; // strip "|originalName" if present
+    return `/api/beleg/${userId}/${storedName}`;
+  }
+  return belegUrl; // fallback for legacy http(s) URLs
+}
+
+/** Extracts a human-readable display name from a stored belegUrl. */
+function belegDisplayName(belegUrl: string): string {
+  if (belegUrl.startsWith("beleg:")) {
+    const rest = belegUrl.split("/").pop() ?? "Beleg"; // "storedName|originalName" or just "storedName"
+    const parts = rest.split("|");
+    return parts.length > 1 ? parts.slice(1).join("|") : parts[0]; // prefer originalName
+  }
+  return belegUrl.split("/").pop() ?? "Beleg";
+}
 
 export const handle = {
   breadcrumbs: (data: { companyId: string; companyName: string }) => [
@@ -35,6 +57,7 @@ interface Einnahme {
   zahlungsart: "KASSE" | "BANK";
   datum: string;
   beschreibung: string | null;
+  belegUrl: string | null;
 }
 
 const emptyForm = {
@@ -44,6 +67,7 @@ const emptyForm = {
   zahlungsart: "BANK" as "KASSE" | "BANK",
   datum: new Date().toISOString().slice(0, 10),
   beschreibung: "",
+  belegUrl: "",
 };
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
@@ -99,6 +123,7 @@ export async function loader({ request, params }: { request: Request; params: { 
       zahlungsart: (e.zahlungsart as "KASSE" | "BANK") || "BANK",
       datum: e.date.toISOString(),
       beschreibung: e.description,
+      belegUrl: e.belegUrl ?? null,
     })),
   };
 }
@@ -113,6 +138,47 @@ export default function EinnahmenPage() {
   const [loadingYear, setLoadingYear] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [view, setView] = useState<"pivot" | "liste">("liste");
+
+  // File upload state
+  const [pendingFile, setPendingFile] = useState<File | null>(null);
+  const [uploadingBeleg, setUploadingBeleg] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Quick-upload from list view (without opening dialog)
+  const [quickUploadId, setQuickUploadId] = useState<string | null>(null);
+
+  const handleFileDrop = useCallback((file: File) => {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
+    if (!allowed.includes(file.type)) {
+      setUploadError("Nur PDF, JPG, PNG, WebP oder GIF erlaubt.");
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      setUploadError("Datei zu groß (max. 10 MB).");
+      return;
+    }
+    setUploadError(null);
+    setPendingFile(file);
+  }, []);
+
+  async function handleQuickUpload(buchungId: string, file: File) {
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"];
+    if (!allowed.includes(file.type) || file.size > 10 * 1024 * 1024) return;
+    setQuickUploadId(buchungId);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch(`/api/einnahmen/${buchungId}/upload`, { method: "POST", body: fd });
+      if (res.ok) {
+        await loadYear(year);
+        revalidate();
+      }
+    } finally {
+      setQuickUploadId(null);
+    }
+  }
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -134,18 +200,23 @@ export default function EinnahmenPage() {
       zahlungsart: ((e.zahlungsart as string) || "BANK") as "KASSE" | "BANK",
       datum: e.date as string,
       beschreibung: (e.description as string | null) ?? null,
+      belegUrl: (e.belegUrl as string | null) ?? null,
     })));
     setLoadingYear(false);
   }
 
   function openCreate() {
     setEditingId(null);
+    setPendingFile(null);
+    setUploadError(null);
     setForm({ ...emptyForm, datum: `${year}-01-01`, kategorie: kategorien[0] ?? "" });
     setDialogOpen(true);
   }
 
   function openEdit(e: Einnahme) {
     setEditingId(e.id);
+    setPendingFile(null);
+    setUploadError(null);
     setForm({
       kategorie: e.kategorie,
       betrag: String(e.betrag),
@@ -153,12 +224,14 @@ export default function EinnahmenPage() {
       zahlungsart: e.zahlungsart,
       datum: e.datum.slice(0, 10),
       beschreibung: e.beschreibung ?? "",
+      belegUrl: e.belegUrl ?? "",
     });
     setDialogOpen(true);
   }
 
   async function handleSave() {
     setSaving(true);
+    setUploadError(null);
     const payload = {
       kategorie: form.kategorie,
       betrag: parseFloat(form.betrag),
@@ -166,27 +239,57 @@ export default function EinnahmenPage() {
       zahlungsart: form.zahlungsart,
       datum: form.datum,
       beschreibung: form.beschreibung || undefined,
+      belegUrl: form.belegUrl || undefined,
     };
     try {
+      let savedId: string;
       if (editingId) {
-        await fetch(`/api/einnahmen/${editingId}`, {
+        const res = await fetch(`/api/einnahmen/${editingId}`, {
           method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
+        if (!res.ok) throw new Error("Speichern fehlgeschlagen.");
+        savedId = editingId;
       } else {
-        await fetch("/api/einnahmen", {
+        const res = await fetch("/api/einnahmen", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...payload, companyId }),
         });
+        if (!res.ok) throw new Error("Erstellen fehlgeschlagen.");
+        const created = await res.json() as { id?: string };
+        savedId = created.id ?? "";
       }
+
+      // Upload pending file after entry is saved
+      if (pendingFile && savedId) {
+        setUploadingBeleg(true);
+        const fd = new FormData();
+        fd.append("file", pendingFile);
+        const upRes = await fetch(`/api/einnahmen/${savedId}/upload`, { method: "POST", body: fd });
+        if (!upRes.ok) {
+          const err = await upRes.json().catch(() => ({ error: "Upload fehlgeschlagen." })) as { error?: string };
+          throw new Error(err.error ?? "Upload fehlgeschlagen.");
+        }
+        setPendingFile(null);
+      }
+
       setDialogOpen(false);
       await loadYear(year);
       revalidate();
+    } catch (e) {
+      setUploadError(e instanceof Error ? e.message : "Unbekannter Fehler.");
     } finally {
       setSaving(false);
+      setUploadingBeleg(false);
     }
+  }
+
+  async function handleDeleteBeleg(id: string) {
+    await fetch(`/api/einnahmen/${id}/upload`, { method: "DELETE" });
+    await loadYear(year);
+    revalidate();
   }
 
   async function handleDelete(id: string) {
@@ -243,6 +346,33 @@ export default function EinnahmenPage() {
           <p className="text-gray-500 mt-1">{companyName} · {year}</p>
         </div>
         <div className="flex items-center gap-3">
+          {/* View toggle */}
+          <div className="flex rounded-lg border border-gray-200 overflow-hidden">
+            <button
+              onClick={() => setView("liste")}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors ${
+                view === "liste"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-white text-gray-500 hover:bg-gray-50"
+              }`}
+              title="Listenansicht"
+            >
+              <List className="h-4 w-4" />
+              Liste
+            </button>
+            <button
+              onClick={() => setView("pivot")}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium transition-colors border-l border-gray-200 ${
+                view === "pivot"
+                  ? "bg-emerald-600 text-white"
+                  : "bg-white text-gray-500 hover:bg-gray-50"
+              }`}
+              title="Übersicht"
+            >
+              <LayoutGrid className="h-4 w-4" />
+              Übersicht
+            </button>
+          </div>
           <select
             value={year}
             onChange={(e) => loadYear(Number(e.target.value))}
@@ -297,7 +427,7 @@ export default function EinnahmenPage() {
         </Card>
       </div>
 
-      {/* Pivottabelle */}
+      {/* Pivottabelle / Listenansicht */}
       {loadingYear ? (
         <div className="flex items-center justify-center py-16 text-gray-400">
           <Loader2 className="h-6 w-6 animate-spin mr-2" />
@@ -312,6 +442,147 @@ export default function EinnahmenPage() {
               Erste Einnahme hinzufügen
             </Button>
           </CardContent>
+        </Card>
+      ) : view === "liste" ? (
+        /* ── LISTENANSICHT ─────────────────────────────────────── */
+        <Card>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm border-collapse">
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50">
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Datum</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Kategorie</th>
+                  <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Notiz</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Brutto</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">MwSt.</th>
+                  <th className="px-3 py-2.5 text-right text-xs font-semibold text-slate-500 uppercase tracking-wide">Netto</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">Zahlung</th>
+                  <th className="px-3 py-2.5 text-center text-xs font-semibold text-slate-500 uppercase tracking-wide">
+                    <span className="inline-flex items-center gap-1"><Paperclip className="h-3 w-3" />Beleg</span>
+                  </th>
+                  <th className="px-3 py-2.5 w-20" />
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {[...einnahmen].sort((a, b) => b.datum.localeCompare(a.datum)).map((e) => {
+                  const rate = e.steuersatz / 100;
+                  const netto = rate > 0 ? Math.round((e.betrag / (1 + rate)) * 100) / 100 : e.betrag;
+                  return (
+                    <tr key={e.id} className="hover:bg-slate-50/60 group">
+                      <td className="px-4 py-2.5 text-slate-600 whitespace-nowrap">
+                        {new Date(e.datum).toLocaleDateString("de-DE")}
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-700 font-medium whitespace-nowrap">
+                        {e.kategorie}
+                      </td>
+                      <td className="px-4 py-2.5 text-slate-400 text-xs truncate max-w-[14rem]">
+                        {e.beschreibung ?? <span className="text-slate-300">—</span>}
+                      </td>
+                      <td className="px-3 py-2.5 text-right font-medium text-emerald-700 whitespace-nowrap">
+                        {formatCurrency(e.betrag)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        {e.steuersatz > 0 ? (
+                          <Badge variant="secondary">{e.steuersatz} %</Badge>
+                        ) : (
+                          <span className="text-slate-300 text-xs">—</span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-right text-slate-600 whitespace-nowrap">
+                        {formatCurrency(netto)}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        {e.zahlungsart === "BANK" ? (
+                          <span className="inline-flex items-center gap-1 text-xs text-blue-600 font-medium">
+                            <Landmark className="h-3 w-3" /> Bank
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center gap-1 text-xs text-amber-600 font-medium">
+                            <Banknote className="h-3 w-3" /> Kasse
+                          </span>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        {e.belegUrl ? (
+                          <div className="inline-flex items-center gap-1">
+                            <a
+                              href={belegHref(e.belegUrl) ?? "#"}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1 text-xs text-emerald-600 hover:text-emerald-800 font-medium max-w-[8rem] truncate"
+                              title={e.belegUrl}
+                            >
+                              <FileText className="h-3.5 w-3.5 shrink-0" />
+                              <span className="truncate">{belegDisplayName(e.belegUrl)}</span>
+                            </a>
+                          </div>
+                        ) : quickUploadId === e.id ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-500 mx-auto" />
+                        ) : (
+                          <label
+                            htmlFor={`quick-upload-${e.id}`}
+                            className="inline-flex items-center gap-1 text-xs text-slate-300 hover:text-emerald-600 transition-colors cursor-pointer"
+                            title="Beleg hochladen"
+                          >
+                            <Paperclip className="h-3.5 w-3.5" />
+                            <input
+                              id={`quick-upload-${e.id}`}
+                              type="file"
+                              accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,application/pdf,image/*"
+                              className="hidden"
+                              onChange={(ev) => {
+                                const file = ev.target.files?.[0];
+                                if (file) handleQuickUpload(e.id, file);
+                                ev.target.value = "";
+                              }}
+                            />
+                          </label>
+                        )}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity justify-end">
+                          <button
+                            onClick={() => openEdit(e)}
+                            className="p-1 rounded hover:bg-slate-100 text-slate-500 hover:text-slate-700"
+                            title="Bearbeiten"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </button>
+                          <button
+                            onClick={() => handleDelete(e.id)}
+                            disabled={deleting === e.id}
+                            className="p-1 rounded hover:bg-red-50 text-slate-400 hover:text-red-600"
+                            title="Löschen"
+                          >
+                            {deleting === e.id ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-3.5 w-3.5" />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+              <tfoot>
+                <tr className="border-t-2 border-slate-300 bg-slate-50">
+                  <td colSpan={3} className="px-4 py-2.5 text-xs font-bold text-slate-700">
+                    Gesamt ({einnahmen.length} Einträge)
+                  </td>
+                  <td className="px-3 py-2.5 text-right text-xs font-bold text-emerald-600 whitespace-nowrap">
+                    {formatCurrency(gesamt)}
+                  </td>
+                  <td />
+                  <td className="px-3 py-2.5 text-right text-xs font-bold text-slate-600 whitespace-nowrap">
+                    {formatCurrency(gesamt - ustGesamt)}
+                  </td>
+                  <td colSpan={3} />
+                </tr>
+              </tfoot>
+            </table>
+          </div>
         </Card>
       ) : (
         <Card>
@@ -600,17 +871,110 @@ export default function EinnahmenPage() {
                 className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500"
               />
             </div>
+
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                <span className="inline-flex items-center gap-1.5">
+                  <Paperclip className="h-3.5 w-3.5" />
+                  Beleg
+                </span>
+              </label>
+
+              {/* Pending file preview */}
+              {pendingFile ? (
+                <div className="flex items-center gap-3 rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2.5 text-sm">
+                  <FileText className="h-5 w-5 text-emerald-600 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-medium text-emerald-800 truncate">{pendingFile.name}</p>
+                    <p className="text-xs text-emerald-600">{(pendingFile.size / 1024).toFixed(0)} KB</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setPendingFile(null)}
+                    className="shrink-0 rounded-full p-0.5 hover:bg-emerald-100 text-emerald-500 hover:text-emerald-700"
+                    title="Entfernen"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : form.belegUrl ? (
+                /* Existing uploaded beleg */
+                <div className="flex items-center gap-3 rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 text-sm">
+                  <FileText className="h-5 w-5 text-gray-500 shrink-0" />
+                  <div className="flex-1 min-w-0">
+                    <a
+                      href={belegHref(form.belegUrl) ?? "#"}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-medium text-emerald-600 hover:text-emerald-800 truncate block"
+                      title={form.belegUrl}
+                    >
+                      {belegDisplayName(form.belegUrl)}
+                    </a>
+                    <p className="text-xs text-gray-400">Vorhandener Beleg · neuen hochladen zum Ersetzen</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setForm((f) => ({ ...f, belegUrl: "" }))}
+                    className="shrink-0 rounded-full p-0.5 hover:bg-gray-100 text-gray-400 hover:text-red-500"
+                    title="Beleg entfernen"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+              ) : null}
+
+              {/* Drag & drop zone — always shown so user can replace/add */}
+              {!pendingFile && (
+                <label
+                  htmlFor="beleg-file-input"
+                  onDragOver={(ev) => { ev.preventDefault(); setDragOver(true); }}
+                  onDragLeave={() => setDragOver(false)}
+                  onDrop={(ev) => {
+                    ev.preventDefault();
+                    setDragOver(false);
+                    const file = ev.dataTransfer.files[0];
+                    if (file) handleFileDrop(file);
+                  }}
+                  className={`flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-6 cursor-pointer transition-colors select-none mt-2
+                    ${dragOver ? "border-emerald-400 bg-emerald-50 text-emerald-700" : "border-gray-200 hover:border-emerald-300 hover:bg-gray-50 text-gray-400"}`}
+                >
+                  <Upload className="h-6 w-6" />
+                  <p className="text-sm font-medium">
+                    {form.belegUrl ? "Anderen Beleg hochladen" : "Datei hier ablegen oder klicken"}
+                  </p>
+                  <p className="text-xs">PDF, JPG, PNG, WebP, GIF · max. 10 MB</p>
+                </label>
+              )}
+
+              {uploadError && (
+                <p className="mt-1.5 text-xs text-red-600 font-medium">{uploadError}</p>
+              )}
+
+              <input
+                id="beleg-file-input"
+                ref={fileInputRef}
+                type="file"
+                accept=".pdf,.jpg,.jpeg,.png,.webp,.gif,application/pdf,image/*"
+                className="hidden"
+                onChange={(e) => {
+                  const file = e.target.files?.[0];
+                  if (file) handleFileDrop(file);
+                  e.target.value = "";
+                }}
+              />
+            </div>
           </div>
 
           <div className="flex justify-end gap-2 pt-2">
             <Button variant="outline" onClick={() => setDialogOpen(false)}>Abbrechen</Button>
             <Button
               onClick={handleSave}
-              disabled={saving || !formValid}
+              disabled={saving || uploadingBeleg || !formValid}
               className="bg-emerald-600 hover:bg-emerald-700"
             >
-              {saving && <Loader2 className="h-4 w-4 animate-spin" />}
-              {editingId ? "Speichern" : "Hinzufügen"}
+              {(saving || uploadingBeleg) && <Loader2 className="h-4 w-4 animate-spin" />}
+              {uploadingBeleg ? "Beleg wird hochgeladen…" : editingId ? "Speichern" : "Hinzufügen"}
             </Button>
           </div>
         </DialogContent>

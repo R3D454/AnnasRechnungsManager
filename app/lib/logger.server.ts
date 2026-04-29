@@ -21,7 +21,9 @@ export type LogAction =
   | "DELETE_CUSTOMER"
   | "CREATE_SERVICE"
   | "UPDATE_SERVICE"
-  | "DELETE_SERVICE";
+  | "DELETE_SERVICE"
+  | "UPLOAD_BELEG"
+  | "DELETE_BELEG";
 
 export async function log({
   userId,
