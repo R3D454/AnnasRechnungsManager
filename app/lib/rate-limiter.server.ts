@@ -1,9 +1,9 @@
 import { RateLimiterMemory } from "rate-limiter-flexible";
 
-// Max. 5 Loginversuche pro IP innerhalb von 15 Minuten
+// Max. 15 Loginversuche pro IP innerhalb von 3 Minuten
 const loginLimiter = new RateLimiterMemory({
-  points: 5,
-  duration: 60 * 15,
+  points: 15,
+  duration: 60 * 3,
 });
 
 export async function checkLoginRateLimit(request: Request): Promise<string | null> {
