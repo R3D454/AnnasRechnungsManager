@@ -1,10 +1,18 @@
 import { createCookieSessionStorage, redirect } from "react-router";
 import bcrypt from "bcryptjs";
+import { randomBytes } from "crypto";
 import prisma from "@/lib/prisma.server";
 import { log } from "@/lib/logger.server";
 
-if (!process.env.AUTH_SECRET) {
-  throw new Error("AUTH_SECRET environment variable is required");
+/**
+ * AUTH_SECRET wird nur aus .env gelesen, falls die Umgebungsvariable nicht existiert.
+ * Falls nicht gesetzt, wird eine zufällige generiert.
+ * Bei jedem Containerstart mit ephemerem Secret werden alle bestehenden Sessions invalidiert.
+ */
+const AUTH_SECRET = process.env.AUTH_SECRET || randomBytes(32).toString("base64");
+
+if (!AUTH_SECRET) {
+  throw new Error("AUTH_SECRET could not be generated");
 }
 
 const sessionStorage = createCookieSessionStorage({
@@ -14,7 +22,7 @@ const sessionStorage = createCookieSessionStorage({
     maxAge: 60 * 60 * 4, // 4 Stunden
     path: "/",
     sameSite: "lax",
-    secrets: [process.env.AUTH_SECRET],
+    secrets: [AUTH_SECRET],
     secure: process.env.NODE_ENV === "production",
   },
 });
@@ -64,14 +72,24 @@ export async function createUserSession(
 }
 
 export async function getUserSession(request: Request) {
-  const session = await sessionStorage.getSession(
-    request.headers.get("Cookie")
-  );
-  return {
-    userId: session.get("userId") as string | undefined,
-    userName: session.get("userName") as string | undefined,
-    userRole: session.get("userRole") as string | undefined,
-  };
+  try {
+    const session = await sessionStorage.getSession(
+      request.headers.get("Cookie")
+    );
+    return {
+      userId: session.get("userId") as string | undefined,
+      userName: session.get("userName") as string | undefined,
+      userRole: session.get("userRole") as string | undefined,
+    };
+  } catch (error) {
+    // Session-Cookie ist ungültig (z.B. nach Neustart mit neuem AUTH_SECRET)
+    // Gib eine leere Session zurück, damit der Nutzer zum Login weitergeleitet wird
+    return {
+      userId: undefined,
+      userName: undefined,
+      userRole: undefined,
+    };
+  }
 }
 
 export async function requireUser(request: Request) {

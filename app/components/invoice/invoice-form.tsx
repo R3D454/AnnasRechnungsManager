@@ -8,7 +8,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { calcItemAmounts, calcItemAmountsKleinunternehmer, calcInvoiceTotals, formatCurrency, TAX_RATES } from "@/lib/tax";
 import { Plus, Trash2 } from "lucide-react";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Customer {
   id: string;
@@ -301,7 +300,7 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultValues, def
                         value={descValue}
                         onChange={(e) => setValue(`items.${index}.description`, e.target.value)}
                         onFocus={() => setOpenDropdown(index)}
-                        onBlur={() => setOpenDropdown(null)}
+                        onBlur={() => setTimeout(() => setOpenDropdown(null), 100)}
                         placeholder="Leistungsbeschreibung"
                         className="text-sm"
                         autoComplete="off"
@@ -315,7 +314,7 @@ export function InvoiceForm({ customers, companyId, onSubmit, defaultValues, def
                               className="w-full text-left px-3 py-2 text-sm hover:bg-gray-50 flex flex-col"
                               onMouseDown={(e) => {
                                 e.preventDefault();
-                                setValue(`items.${index}.description`, s.description ?? s.name);
+                                setValue(`items.${index}.description`, s.name);
                                 setValue(`items.${index}.unit`, s.unit ?? "Stück");
                                 setValue(`items.${index}.unitPrice`, String(s.unitPrice));
                                 setValue(`items.${index}.taxRate`, String(s.taxRate));
