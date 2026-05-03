@@ -2,7 +2,8 @@ import { Link, useLoaderData } from "react-router";
 import { requireAdmin } from "@/session.server";
 import prisma from "@/lib/prisma.server";
 import { Badge } from "@/components/ui/badge";
-import { Building2, Archive } from "lucide-react";
+import { Building2, Archive, Trash2 } from "lucide-react";
+import { useState } from "react";
 
 export async function loader({ request }: { request: Request }) {
   await requireAdmin(request);
@@ -68,6 +69,37 @@ function MandantenTabelle({
   title: string;
   archived?: boolean;
 }) {
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async (companyId: string, companyName: string) => {
+    if (deleteConfirm !== companyId) {
+      setDeleteConfirm(companyId);
+      return;
+    }
+
+    setIsDeleting(true);
+    try {
+      const response = await fetch(`/api/admin/companies/${companyId}/delete`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        // Reload the page to refresh the list
+        window.location.reload();
+      } else {
+        const error = await response.json();
+        alert(`Fehler beim Löschen: ${error.error || response.statusText}`);
+        setDeleteConfirm(null);
+      }
+    } catch (error) {
+      alert(`Fehler beim Löschen: ${error}`);
+      setDeleteConfirm(null);
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   if (companies.length === 0) return null;
 
   return (
@@ -113,13 +145,25 @@ function MandantenTabelle({
                 </td>
                 <td className="px-4 py-3 text-right text-slate-600">{company._count.invoices}</td>
                 <td className="px-4 py-3 text-right text-slate-600">{company._count.customers}</td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-4 py-3 text-right space-x-2 flex justify-end">
                   <Link
                     to={`/companies/${company.id}`}
                     className="text-indigo-600 hover:text-indigo-800 font-medium text-xs"
                   >
                     Öffnen →
                   </Link>
+                  <button
+                    onClick={() => handleDelete(company.id, company.name)}
+                    disabled={isDeleting}
+                    className={`text-xs font-medium flex items-center gap-1 px-2 py-1 rounded transition-colors ${
+                      deleteConfirm === company.id
+                        ? "bg-red-100 text-red-700 hover:bg-red-200"
+                        : "text-slate-500 hover:text-red-600"
+                    } ${isDeleting ? "opacity-50 cursor-not-allowed" : ""}`}
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    {deleteConfirm === company.id ? "Bestätigen?" : "Löschen"}
+                  </button>
                 </td>
               </tr>
             ))}

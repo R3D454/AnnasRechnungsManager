@@ -231,6 +231,12 @@ export default function CompaniesPage() {
             {/* Aktionen */}
             <div className="flex gap-2 p-4 border-b border-slate-100">
               <Button variant="outline" size="sm" asChild className="flex-1">
+                <Link to={`/companies/${selected.id}`}>
+                  <ChevronRight className="h-3.5 w-3.5" />
+                  Dashboard
+                </Link>
+              </Button>
+              <Button variant="outline" size="sm" asChild className="flex-1">
                 <Link to={`/companies/${selected.id}/edit`}>
                   <Edit className="h-3.5 w-3.5" />
                   Bearbeiten

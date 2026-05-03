@@ -35,7 +35,7 @@ export const taxRateSchema = z
 export const ibanSchema = z
   .string()
   .refine(
-    (iban) => /^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(iban),
+    (iban) => iban === "" || /^[A-Z]{2}\d{2}[A-Z0-9]{1,30}$/.test(iban),
     "Ungültige IBAN"
   );
 
@@ -44,14 +44,20 @@ export const ibanSchema = z
  */
 export const taxIdSchema = z
   .string()
-  .regex(/^\d{10}$/, "Steuernummer muss 10 Ziffern haben");
+  .refine(
+    (val) => val === "" || /^\d{10}$/.test(val),
+    "Steuernummer muss 10 Ziffern haben"
+  );
 
 /**
  * VAT ID (Umsatzsteuer-IdNr): DE + 9 digits
  */
 export const vatIdSchema = z
   .string()
-  .regex(/^DE\d{9}$/, "USt-IdNr. muss im Format DE + 9 Ziffern sein");
+  .refine(
+    (val) => val === "" || /^DE\d{9}$/.test(val),
+    "USt-IdNr. muss im Format DE + 9 Ziffern sein"
+  );
 
 // ===== Invoice Schemas =====
 
@@ -131,8 +137,8 @@ export const companySchema = z.object({
     .string()
     .max(100, "Rechtsform darf maximal 100 Zeichen sein")
     .optional(),
-  taxId: taxIdSchema.optional(),
-  vatId: vatIdSchema.optional(),
+  taxId: taxIdSchema.nullable(),
+  vatId: vatIdSchema.nullable(),
   address: z
     .string()
     .min(1, "Adresse erforderlich")
@@ -162,14 +168,22 @@ export const companySchema = z.object({
     .optional(),
   website: z
     .string()
-    .url("Ungültige URL")
+    .refine(
+      (val) => val === "" || /^https?:\/\//.test(val),
+      "Website muss mit http:// oder https:// beginnen"
+    )
     .max(255, "Website darf maximal 255 Zeichen sein")
-    .optional(),
-  bankIban: ibanSchema.optional(),
+    .optional()
+    .or(z.literal("")),
+  bankIban: ibanSchema.nullable(),
   bankBic: z
     .string()
-    .regex(/^[A-Z0-9]{8,11}$/, "Ungültiger BIC")
-    .optional(),
+    .refine(
+      (val) => val === "" || /^[A-Z0-9]{8,11}$/.test(val),
+      "Ungültiger BIC"
+    )
+    .optional()
+    .or(z.literal("")),
   bankName: z
     .string()
     .max(255, "Bankname darf maximal 255 Zeichen sein")

@@ -21,7 +21,7 @@ services:
 
   app:
   # registry.henryathome.home64.de/henry/annasrechnungsmanager:latest
-    image: annasrechnungsmanager:latest
+    image: git.henryathome.home64.de/henry/annasrechnungsmanager:latest
     container_name: annas_app
     restart: unless-stopped
     ports:

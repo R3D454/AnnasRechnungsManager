@@ -5,12 +5,47 @@ import { calcItemAmounts, calcInvoiceTotals, calcItemAmountsKleinunternehmer } f
 import { log } from "@/lib/logger.server";
 import { InvoiceStatus } from "@prisma/client";
 import { invoiceUpdateSchema, invoiceStatusSchema, invoiceItemSchema } from "@/lib/schemas";
+import { writeFile, mkdir } from "node:fs/promises";
+import { join, resolve } from "node:path";
 
 async function getInvoice(id: string, userId: string) {
   return prisma.invoice.findFirst({
     where: { id, company: { userId } },
     include: { items: { orderBy: { position: "asc" } }, customer: true, company: true },
   });
+}
+
+/** Storage root for documents */
+function storageRoot(): string {
+  return resolve(process.env.BELEG_STORAGE_PATH ?? "data/documents");
+}
+
+/** Generate and save invoice PDF as beleg (receipt) */
+async function generateAndSaveInvoicePDF(invoice: Awaited<ReturnType<typeof getInvoice>>, userId: string): Promise<string | null> {
+  if (!invoice) return null;
+
+  try {
+    const { renderToBuffer } = await import("@react-pdf/renderer");
+    const React = (await import("react")).default;
+    const { InvoicePDFDocument } = await import("@/components/invoice/invoice-pdf");
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const element = React.createElement(InvoicePDFDocument as any, { invoice }) as any;
+    const buffer = await renderToBuffer(element);
+
+    // Save to storage
+    const safeName = `${invoice.id}-${Date.now()}.pdf`;
+    const userDir = join(storageRoot(), userId);
+    await mkdir(userDir, { recursive: true });
+    await writeFile(join(userDir, safeName), Buffer.from(buffer));
+
+    // Return as "beleg:{userId}/{storedName}|{originalName}"
+    const originalName = `rechnung-${invoice.number ?? invoice.id}.pdf`;
+    return `beleg:${userId}/${safeName}|${originalName}`;
+  } catch {
+    console.error("Failed to generate invoice PDF");
+    return null;
+  }
 }
 
 export async function loader({ request, params }: { request: Request; params: { id: string } }) {
@@ -148,6 +183,16 @@ export async function action({ request, params }: { request: Request; params: { 
 
   // Handle Buchung sync: Create when PAID, delete when unpaying
   if (newStatus === "PAID" && oldStatus !== "PAID") {
+    // Generate and save invoice PDF as beleg
+    const belegUrl = await generateAndSaveInvoicePDF(invoice, user.id);
+
+    // Calculate weighted average tax rate (kann mehrere Items mit unterschiedlichen Steuersätzen geben)
+    let averageTaxRate = 0;
+    if (invoice.taxTotal > 0 && invoice.netTotal > 0) {
+      // steuersatz = (taxTotal / netTotal) * 100
+      averageTaxRate = Math.round((invoice.taxTotal / invoice.netTotal) * 100);
+    }
+
     // Create a Buchung for the invoice payment
     const buchung = await prisma.buchung.create({
       data: {
@@ -159,6 +204,8 @@ export async function action({ request, params }: { request: Request; params: { 
         description: `Rechnung ${invoice.number}`,
         kategorie: "Rechnungseinnahme",
         isBusinessRecord: true,
+        steuersatz: invoice.kleinunternehmer ? 0 : averageTaxRate, // 0 for Kleinunternehmer
+        belegUrl: belegUrl, // Attach the generated invoice PDF
       },
     });
 
@@ -179,7 +226,7 @@ export async function action({ request, params }: { request: Request; params: { 
       action: "UPDATE_INVOICE_STATUS",
       entity: "Invoice",
       entityId: params.id,
-      metadata: { oldStatus, newStatus, buchungId: buchung.id },
+      metadata: { oldStatus, newStatus, buchungId: buchung.id, belegUrl, steuersatz: averageTaxRate },
       request,
     });
 

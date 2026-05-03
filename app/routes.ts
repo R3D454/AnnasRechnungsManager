@@ -45,6 +45,7 @@ export default [
   route("api/companies/:id/customers", "routes/api.companies.$id.customers.ts"),
   route("api/companies/:id/invoices", "routes/api.companies.$id.invoices.ts"),
   route("api/companies/:id/money", "routes/api.companies.$id.money.ts"),
+  route("api/admin/companies/:id/delete", "routes/api.admin.companies.$id.delete.ts"),
   route("api/customers", "routes/api.customers.ts"),
   route("api/customers/:id", "routes/api.customers.$id.ts"),
   route("api/services", "routes/api.services.ts"),

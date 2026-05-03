@@ -47,9 +47,21 @@ export async function log({
     : undefined;
 
   try {
+    // Validate that userId exists in the database if provided
+    let validatedUserId = userId;
+    if (userId) {
+      const userExists = await prisma.user.findUnique({
+        where: { id: userId },
+        select: { id: true },
+      });
+      if (!userExists) {
+        validatedUserId = null; // User doesn't exist, log as anonymous
+      }
+    }
+
     await prisma.auditLog.create({
       data: {
-        userId: userId ?? null,
+        userId: validatedUserId ?? null,
         action,
         entity: entity ?? null,
         entityId: entityId ?? null,

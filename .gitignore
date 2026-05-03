@@ -50,3 +50,6 @@ next-env.d.ts
 
 # Uploaded Belege (persistent volume in production)
 data/documents/
+
+.vscode/
+.react-router
